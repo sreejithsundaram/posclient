@@ -8,6 +8,15 @@
     </div>
 
     <div class="topbar__status">
+      <div class="api-badge" [attr.data-state]="apiStatus()">
+        <span class="api-badge__dot"></span>
+        <span class="api-badge__label">{{
+          apiStatus() === 'online'   ? 'API Online'
+          : apiStatus() === 'offline' ? 'API Offline'
+          : 'API…'
+        }}</span>
+      </div>
+
       <div class="ws-badge" [attr.data-state]="wsStatus()">
         <span class="ws-badge__dot"></span>
         <span class="ws-badge__label">{{
@@ -109,6 +118,7 @@
       [animateRows]="true"
       [suppressMovableColumns]="true"
       [rowHeight]="rowHeight"
+      [rowSelection]="rowSelection"
       (gridReady)="onGridReady($event)"
     />
   </main>
@@ -137,6 +147,18 @@
 
     <button class="btn-clear" (click)="clearCart()">
       <span>✕</span> Clear
+    </button>
+
+    <button
+      class="btn-remove-selected"
+      (click)="removeSelected()"
+      [disabled]="selectedCount() === 0"
+      [class.btn-remove-selected--active]="selectedCount() > 0"
+    >
+      <span>⊖</span> Remove Selected
+      @if (selectedCount() > 0) {
+        <span class="btn-remove-selected__count">{{ selectedCount() }}</span>
+      }
     </button>
   </footer>
 

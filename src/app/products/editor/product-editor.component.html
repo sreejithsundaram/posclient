@@ -1,0 +1,471 @@
+<div class="editor-shell">
+
+  <!-- ── Header ─────────────────────────────────────────── -->
+  <header class="editor-header">
+    <div class="editor-header__brand">
+      <span class="editor-header__icon">⬡</span>
+      <div>
+        <div class="editor-header__title">Product Editor</div>
+        <div class="editor-header__sub">Inventory Management</div>
+      </div>
+    </div>
+
+    <div class="editor-header__mode">
+      <div class="ws-badge" [attr.data-state]="scannerStatus()">
+        <span class="ws-badge__dot"></span>
+        <span class="ws-badge__label">{{
+          scannerStatus() === 'connected'    ? 'Scanner Connected'
+          : scannerStatus() === 'connecting' ? 'Connecting…'
+          : 'Scanner Offline'
+        }}</span>
+      </div>
+
+      <button
+        class="mode-btn"
+        [class.mode-btn--active]="mode() === 'create'"
+        (click)="setMode('create')"
+      >
+        <span class="mode-btn__icon">＋</span> New Item
+      </button>
+      <button
+        class="mode-btn"
+        [class.mode-btn--active]="mode() === 'edit'"
+        (click)="setMode('edit')"
+      >
+        <span class="mode-btn__icon">⌕</span> Find &amp; Edit
+      </button>
+    </div>
+  </header>
+
+  <!-- ── Search panel (edit mode) ───────────────────────── -->
+  @if (mode() === 'edit') {
+    <div class="search-panel">
+      <div class="search-panel__inner">
+        <span class="search-panel__icon">⌕</span>
+        <input
+          #searchInput
+          class="search-panel__input"
+          type="text"
+          placeholder="Search by name, code or barcode…"
+          [value]="searchQuery()"
+          (input)="onSearchInput($any($event.target).value)"
+          (blur)="closeSearchDropdown()"
+          autocomplete="off"
+        />
+        @if (isSearching()) {
+          <span class="search-panel__spinner"></span>
+        }
+
+        @if (showSearchDropdown() && searchResults().length > 0) {
+          <div class="search-panel__dropdown">
+            @for (item of searchResults(); track item.id) {
+              <div class="search-result" (mousedown)="loadProduct(item)">
+                <div class="search-result__thumb">
+                  @if (item.thumb) {
+                    <img [src]="'data:image/jpeg;base64,' + item.thumb" alt="" />
+                  } @else {
+                    <span>⬡</span>
+                  }
+                </div>
+                <div class="search-result__info">
+                  <span class="search-result__name">{{ item.name }}</span>
+                  <span class="search-result__meta">
+                    <span class="search-result__code">{{ item.code }}</span>
+                    @if (item.barcode) {
+                      <span class="search-result__barcode">▌{{ item.barcode }}</span>
+                    }
+                  </span>
+                </div>
+                <div class="search-result__price">₹{{ item.sp?.toFixed(2) }}</div>
+              </div>
+            }
+          </div>
+        }
+
+        @if (showSearchDropdown() && searchResults().length === 0 && searchQuery().length >= 3 && !isSearching()) {
+          <div class="search-panel__empty">No products found</div>
+        }
+      </div>
+    </div>
+  }
+
+  <!-- ── Form ────────────────────────────────────────────── -->
+  <div class="editor-body" [class.editor-body--locked]="mode() === 'edit' && !loadedId()">
+
+    @if (mode() === 'edit' && !loadedId()) {
+      <div class="editor-placeholder">
+        <span class="editor-placeholder__icon">⌕</span>
+        <p>Search for a product above to load it for editing</p>
+      </div>
+    }
+
+    @if (mode() === 'create' || loadedId()) {
+      <form class="editor-form" (ngSubmit)="onSubmit()">
+
+        <div class="form-layout">
+
+          <!-- LEFT: Image + toggles -->
+          <div class="form-col form-col--side">
+
+            <!-- Images -->
+            <div class="field-group">
+              <label class="field-label">Images</label>
+
+              <!-- Picture (full size) -->
+              <div class="image-section">
+                <div class="image-section__label">
+                  <span>Product Picture</span>
+                </div>
+                <div
+                  class="image-drop image-drop--wide"
+                  [class.image-drop--has-image]="picturePreview()"
+                  (click)="pictureFileInput.click()"
+                  (dragover)="$event.preventDefault()"
+                  (drop)="onPictureDrop($event)"
+                >
+                  @if (picturePreview()) {
+                    <img class="image-drop__preview" [src]="picturePreview()!" alt="Product picture" />
+                    <div class="image-drop__overlay"><span>Replace</span></div>
+                  } @else {
+                    <div class="image-drop__empty">
+                      <span class="image-drop__icon">⬡</span>
+                      <span class="image-drop__hint">Click or drag</span>
+                      <span class="image-drop__sub">Full-size image</span>
+                    </div>
+                  }
+                </div>
+                <input #pictureFileInput type="file" accept="image/*" style="display:none" (change)="onPictureFile($event)" />
+                @if (picturePreview()) {
+                  <button type="button" class="btn-clear-image" (click)="clearPicture()">✕ Remove</button>
+                }
+              </div>
+
+              <!-- Auto-thumb toggle -->
+              <div
+                class="auto-thumb-row"
+                [class.auto-thumb-row--on]="autoThumb()"
+                (click)="toggleAutoThumb()"
+              >
+                <div class="toggle-track toggle-track--sm">
+                  <div class="toggle-thumb"></div>
+                </div>
+                <span class="auto-thumb-label">
+                  {{ autoThumb() ? 'Create thumbnail automatically from picture' : 'Use custom thumbnail' }}
+                </span>
+              </div>
+
+              <!-- Thumbnail -->
+              <div class="image-section" [class.image-section--disabled]="autoThumb()">
+                <div class="image-section__label">
+                  <span>Thumbnail</span>
+                  @if (autoThumb()) {
+                    <span class="image-section__auto-badge">AUTO</span>
+                  }
+                </div>
+                <div
+                  class="image-drop image-drop--thumb"
+                  [class.image-drop--has-image]="thumbPreview()"
+                  [class.image-drop--disabled]="autoThumb()"
+                  (click)="!autoThumb() && thumbFileInput.click()"
+                  (dragover)="!autoThumb() && $event.preventDefault()"
+                  (drop)="!autoThumb() && onThumbDrop($event)"
+                >
+                  @if (thumbPreview()) {
+                    <img class="image-drop__preview" [src]="thumbPreview()!" alt="Thumbnail" />
+                    @if (!autoThumb()) {
+                      <div class="image-drop__overlay"><span>Replace</span></div>
+                    }
+                  } @else {
+                    <div class="image-drop__empty">
+                      <span class="image-drop__icon">⬡</span>
+                      <span class="image-drop__hint">{{ autoThumb() ? 'Generated on save' : 'Click or drag' }}</span>
+                      <span class="image-drop__sub">44 × 44 px ideal</span>
+                    </div>
+                  }
+                </div>
+                <input #thumbFileInput type="file" accept="image/*" style="display:none" (change)="onThumbFile($event)" />
+                @if (thumbPreview() && !autoThumb()) {
+                  <button type="button" class="btn-clear-image" (click)="clearThumb()">✕ Remove</button>
+                }
+              </div>
+
+            </div>
+
+            <!-- Sellable toggle -->
+            <div class="field-group">
+              <label class="field-label">Status</label>
+              <div
+                class="toggle-row"
+                [class.toggle-row--on]="form().sellable"
+                (click)="toggle('sellable')"
+              >
+                <div class="toggle-track">
+                  <div class="toggle-thumb"></div>
+                </div>
+                <span class="toggle-label">{{ form().sellable ? 'Sellable' : 'Not for Sale' }}</span>
+              </div>
+            </div>
+
+            <!-- Metadata (edit mode) -->
+            @if (loadedId()) {
+              <div class="meta-block">
+                <div class="meta-row">
+                  <span class="meta-key">ID</span>
+                  <span class="meta-val">{{ loadedId() }}</span>
+                </div>
+                <div class="meta-row">
+                  <span class="meta-key">Created</span>
+                  <span class="meta-val">{{ form().created || '—' }}</span>
+                </div>
+                <div class="meta-row">
+                  <span class="meta-key">By</span>
+                  <span class="meta-val">{{ form().createdby || 'SYSTEM' }}</span>
+                </div>
+                <div class="meta-row">
+                  <span class="meta-key">Updated</span>
+                  <span class="meta-val">{{ form().updated || '—' }}</span>
+                </div>
+                <div class="meta-row">
+                  <span class="meta-key">By</span>
+                  <span class="meta-val">{{ form().updatedby || 'SYSTEM' }}</span>
+                </div>
+              </div>
+            }
+
+          </div>
+
+          <!-- RIGHT: Fields -->
+          <div class="form-col form-col--main">
+
+            <div class="field-row">
+              <!-- Code -->
+              <div class="field-group field-group--sm">
+                <label class="field-label" for="f-code">
+                  Code <span class="field-required">*</span>
+                </label>
+                <input
+                  id="f-code"
+                  class="field-input"
+                  [class.field-input--error]="errors().code"
+                  type="text"
+                  placeholder="SKU-001"
+                  [value]="form().code"
+                  (input)="patch('code', $any($event.target).value)"
+                  maxlength="50"
+                />
+                @if (errors().code) {
+                  <span class="field-error">{{ errors().code }}</span>
+                }
+              </div>
+
+              <!-- Barcode -->
+              <div class="field-group barcode-group">
+                <label class="field-label">
+                  Barcode
+                  @if (barcodeScanned()) {
+                    <span class="barcode-scan-flash">⚡ Scanned</span>
+                  }
+                </label>
+                <div class="barcode-inputs">
+                  <div class="field-prefix-wrap barcode-prefix-wrap">
+                    <span class="field-prefix barcode-prefix">▌</span>
+                    <input
+                      #barcodeInput1
+                      id="f-barcode"
+                      class="field-input field-input--mono field-input--password"
+                      [class.field-input--error]="errors().barcode"
+                      [class.field-input--scanned]="barcodeScanned()"
+                      type="password"
+                      placeholder="Scan or type…"
+                      [value]="form().barcode"
+                      (input)="onBarcodeInput($any($event.target).value)"
+                      maxlength="50"
+                      autocomplete="new-password"
+                    />
+                  </div>
+                  <div class="field-prefix-wrap barcode-prefix-wrap">
+                    <span class="field-prefix barcode-prefix">▌</span>
+                    <input
+                      #barcodeInput2
+                      id="f-barcode2"
+                      class="field-input field-input--mono"
+                      [class.field-input--error]="errors().barcode"
+                      [class.field-input--scanned]="barcodeScanned()"
+                      type="text"
+                      placeholder="Re-enter barcode…"
+                      [value]="barcodeConfirm()"
+                      (input)="onBarcodeConfirmInput($any($event.target).value)"
+                      maxlength="50"
+                      autocomplete="off"
+                    />
+                  </div>
+                </div>
+                @if (errors().barcode) {
+                  <span class="field-error">{{ errors().barcode }}</span>
+                }
+                @if (form().barcode && barcodeConfirm() && form().barcode !== barcodeConfirm()) {
+                  <span class="field-error">Barcodes do not match</span>
+                }
+                @if (form().barcode && barcodeConfirm() && form().barcode === barcodeConfirm()) {
+                  <span class="field-hint field-hint--ok">✓ Barcodes match</span>
+                }
+              </div>
+            </div>
+
+            <!-- Name -->
+            <div class="field-group">
+              <label class="field-label" for="f-name">
+                Product Name <span class="field-required">*</span>
+              </label>
+              <input
+                id="f-name"
+                class="field-input"
+                [class.field-input--error]="errors().name"
+                type="text"
+                placeholder="Full product name…"
+                [value]="form().name"
+                (input)="patch('name', $any($event.target).value)"
+                maxlength="255"
+              />
+              @if (errors().name) {
+                <span class="field-error">{{ errors().name }}</span>
+              }
+            </div>
+
+            <!-- Description -->
+            <div class="field-group">
+              <label class="field-label" for="f-desc">Description</label>
+              <textarea
+                id="f-desc"
+                class="field-textarea"
+                placeholder="Product description, ingredients, usage…"
+                [value]="form().description"
+                (input)="patch('description', $any($event.target).value)"
+                maxlength="1024"
+                rows="3"
+              ></textarea>
+              <span class="field-count">{{ form().description.length }} / 1024</span>
+            </div>
+
+            <div class="field-row">
+              <!-- MRP -->
+              <div class="field-group field-group--sm">
+                <label class="field-label" for="f-mrp">
+                  MRP <span class="field-required">*</span>
+                </label>
+                <div class="field-prefix-wrap">
+                  <span class="field-prefix">₹</span>
+                  <input
+                    id="f-mrp"
+                    class="field-input field-input--prefix field-input--mono"
+                    [class.field-input--error]="errors().mrp"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="0.00"
+                    [value]="form().mrp ?? ''"
+                    (input)="patch('mrp', +$any($event.target).value)"
+                  />
+                </div>
+                @if (errors().mrp) {
+                  <span class="field-error">{{ errors().mrp }}</span>
+                }
+              </div>
+
+              <!-- SP -->
+              <div class="field-group field-group--sm">
+                <label class="field-label" for="f-sp">
+                  Selling Price <span class="field-required">*</span>
+                </label>
+                <div class="field-prefix-wrap">
+                  <span class="field-prefix">₹</span>
+                  <input
+                    id="f-sp"
+                    class="field-input field-input--prefix field-input--mono"
+                    [class.field-input--error]="errors().sp"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="0.00"
+                    [value]="form().sp ?? ''"
+                    (input)="patch('sp', +$any($event.target).value)"
+                  />
+                </div>
+                @if (errors().sp) {
+                  <span class="field-error">{{ errors().sp }}</span>
+                }
+                @if (form().mrp && form().sp && +form().sp! < +form().mrp!) {
+                  <span class="field-hint field-hint--savings">
+                    ↓ {{ ((( +form().mrp! - +form().sp!) / +form().mrp!) * 100).toFixed(1) }}% off MRP
+                  </span>
+                }
+              </div>
+
+              <!-- UOM -->
+              <div class="field-group field-group--sm">
+                <label class="field-label" for="f-uom">
+                  Unit of Measure <span class="field-required">*</span>
+                </label>
+                <div class="field-select-wrap">
+                  <select
+                    id="f-uom"
+                    class="field-select"
+                    [class.field-select--error]="errors().uomid"
+                    [value]="form().uomid ?? ''"
+                    (change)="patch('uomid', +$any($event.target).value)"
+                  >
+                    <option value="" disabled>Select UOM…</option>
+                    @for (uom of uoms(); track uom.id) {
+                      <option [value]="uom.id">{{ uom.name }}</option>
+                    }
+                  </select>
+                  <span class="field-select-arrow">▾</span>
+                </div>
+                @if (errors().uomid) {
+                  <span class="field-error">{{ errors().uomid }}</span>
+                }
+                @if (uomLoading()) {
+                  <span class="field-hint">Loading UOMs…</span>
+                }
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- ── Actions ──────────────────────────────────────── -->
+        <div class="form-actions">
+          @if (saveStatus() === 'success') {
+            <div class="status-pill status-pill--success">
+              ✓ {{ loadedId() ? 'Product updated' : 'Product created' }}
+            </div>
+          }
+          @if (saveStatus() === 'error') {
+            <div class="status-pill status-pill--error">
+              ⚠ {{ saveError() }}
+            </div>
+          }
+
+          <button type="button" class="btn-secondary" (click)="resetForm()">
+            Reset
+          </button>
+
+          <button
+            type="submit"
+            class="btn-primary"
+            [class.btn-primary--saving]="saveStatus() === 'saving'"
+            [disabled]="saveStatus() === 'saving'"
+          >
+            @if (saveStatus() === 'saving') {
+              <span class="btn-spinner"></span> Saving…
+            } @else {
+              {{ loadedId() ? '⟳ Update Product' : '＋ Create Product' }}
+            }
+          </button>
+        </div>
+
+      </form>
+    }
+  </div>
+
+</div>

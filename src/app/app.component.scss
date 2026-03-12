@@ -53,6 +53,44 @@
   }
 }
 
+/* ── API health badge ────────────────────────────────────── */
+.api-badge {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 12px;
+  border-radius: 20px;
+  border: 1px solid transparent;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+
+  &[data-state='online'] {
+    border-color: #1b4a3a;
+    background: #0a1f17;
+    color: #4db6ac;
+    .api-badge__dot { background: #4db6ac; box-shadow: 0 0 6px #4db6ac; animation: pulse 2s infinite; }
+  }
+  &[data-state='offline'] {
+    border-color: #4e1111;
+    background: #1a0808;
+    color: #ef9a9a;
+    .api-badge__dot { background: #ef9a9a; animation: pulse 0.8s infinite; }
+  }
+  &[data-state='checking'] {
+    border-color: #1e2d4a;
+    background: #0a0e1a;
+    color: #546e7a;
+    .api-badge__dot { background: #546e7a; animation: pulse 1s infinite; }
+  }
+
+  &__dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+  }
+}
+
 /* ── WebSocket badge ─────────────────────────────────────── */
 .ws-badge {
   display: flex;
@@ -447,5 +485,51 @@
     border-color: #c62828;
     color: #ef9a9a;
     background: #1a0a0a;
+  }
+}
+
+.btn-remove-selected {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 18px;
+  background: transparent;
+  border: 1px solid #1e2d4a;
+  border-radius: 6px;
+  color: #546e7a;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  cursor: not-allowed;
+  transition: all 0.2s;
+
+  &--active {
+    border-color: #b71c1c;
+    color: #ef9a9a;
+    background: #140808;
+    cursor: pointer;
+
+    &:hover {
+      background: #3b0f0f;
+      border-color: #c62828;
+      color: #fff;
+    }
+  }
+
+  &__count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 5px;
+    background: #c62828;
+    color: #fff;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 700;
+    font-family: 'JetBrains Mono', monospace;
+    line-height: 1;
   }
 }

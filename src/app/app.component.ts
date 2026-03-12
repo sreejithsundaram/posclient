@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, signal, computed, ElementRef, ViewChild } from '@angular/core';
+import { Component, OnInit, OnDestroy, NgZone, signal, computed, ElementRef, ViewChild } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { Subject, of } from 'rxjs';
@@ -33,7 +33,7 @@ export interface ProductResult {
   mrp: number;
   sp: number;
   stock: number;
-  image?: string; // base64 JPEG
+  thumb?: string; // base64 JPEG
 }
 
 @Component({
@@ -49,7 +49,11 @@ export class AppComponent implements OnInit, OnDestroy {
   private gridApi!: GridApi<CartItem>;
   private ws: WebSocket | null = null;
   private reconnectTimer: any = null;
+  private healthTimer: any = null;
   private slCounter = 0;
+
+  // ── API health ───────────────────────────────────────────
+  apiStatus = signal<'checking' | 'online' | 'offline'>('checking');
 
   // ── Search ───────────────────────────────────────────────
   // switchMap ensures any in-flight HTTP request is cancelled
@@ -95,7 +99,21 @@ export class AppComponent implements OnInit, OnDestroy {
   // Row height to match image size
   readonly rowHeight = 56;
 
+  selectedCount = signal(0);
+
   colDefs: ColDef<CartItem>[] = [
+    {
+      // Checkbox selection column
+      headerCheckboxSelection: true,
+      checkboxSelection: true,
+      headerName: '',
+      width: 44,
+      minWidth: 44,
+      maxWidth: 44,
+      pinned: 'left',
+      sortable: false,
+      resizable: false,
+    },
     {
       // Image column — base64 JPEG rendered as a square thumbnail
       headerName: '',
@@ -188,43 +206,6 @@ export class AppComponent implements OnInit, OnDestroy {
       valueFormatter: (p) => `₹${p.value.toFixed(2)}`,
       cellStyle: { color: '#69f0ae', fontWeight: '600' },
     },
-    {
-      // Remove button column
-      headerName: '',
-      width: 40,
-      minWidth: 40,
-      maxWidth: 40,
-      pinned: 'right',
-      sortable: false,
-      resizable: false,
-      cellRenderer: (p: ICellRendererParams<CartItem>) => {
-        const btn = document.createElement('button');
-        btn.innerHTML = '✕';
-        btn.title = 'Remove item';
-        btn.style.cssText = `
-          width:32px;height:32px;border-radius:4px;border:1px solid #2a1515;
-          background:#110808;color:#546e7a;cursor:pointer;font-size:14px;
-          display:flex;align-items:center;justify-content:center;
-          transition:all 0.15s;margin:auto;padding:0;line-height:1;box-sizing:border-box;`;
-        btn.onmouseenter = () => {
-          btn.style.background = '#3b0f0f';
-          btn.style.borderColor = '#c62828';
-          btn.style.color = '#ef9a9a';
-        };
-        btn.onmouseleave = () => {
-          btn.style.background = '#110808';
-          btn.style.borderColor = '#2a1515';
-          btn.style.color = '#546e7a';
-        };
-        btn.onclick = () => {
-          if (p.data) this.removeItem(p.data);
-        };
-        const wrapper = document.createElement('div');
-        wrapper.style.cssText = 'display:flex;align-items:center;justify-content:center;height:100%;width:100%;';
-        wrapper.appendChild(btn);
-        return wrapper;
-      },
-    },
   ];
 
   defaultColDef: ColDef = {
@@ -232,10 +213,23 @@ export class AppComponent implements OnInit, OnDestroy {
     resizable: true,
   };
 
-  constructor(private http: HttpClient) {}
+  readonly rowSelection = 'multiple';
+
+  removeSelected() {
+    const selected = this.gridApi.getSelectedRows();
+    if (!selected.length) return;
+    this.rowData = this.rowData.filter(r => !selected.find(s => s.id === r.id));
+    this.gridApi.applyTransaction({ remove: selected });
+    this.recalcSummary();
+    this.selectedCount.set(0);
+  }
+
+  constructor(private http: HttpClient, private zone: NgZone) {}
 
   ngOnInit() {
     this.connect();
+    this.checkHealth();
+    this.healthTimer = setInterval(() => this.checkHealth(), 15_000);
 
     // switchMap cancels the previous HTTP request whenever a new search term
     // arrives — so fast typing never gets stale results from a slow earlier req
@@ -315,6 +309,17 @@ export class AppComponent implements OnInit, OnDestroy {
   ngOnDestroy() {
     this.disconnect();
     this.searchSubject.complete();
+    if (this.healthTimer) clearInterval(this.healthTimer);
+  }
+
+  // ── API health check ──────────────────────────────────────
+
+  private checkHealth() {
+    this.http.get('/api/POS/health', { observe: 'response' }).pipe(
+      catchError(() => of(null))
+    ).subscribe(res => {
+      this.apiStatus.set(res && res.ok ? 'online' : 'offline');
+    });
   }
 
   // ── WebSocket ─────────────────────────────────────────────
@@ -327,20 +332,24 @@ export class AppComponent implements OnInit, OnDestroy {
     this.ws = new WebSocket(url);
 
     this.ws.onopen = () => {
-      this.wsStatus.set('connected');
-      this.lastError.set('');
-      if (this.reconnectTimer) {
-        clearTimeout(this.reconnectTimer);
-        this.reconnectTimer = null;
-      }
+      this.zone.run(() => {
+        this.wsStatus.set('connected');
+        this.lastError.set('');
+        if (this.reconnectTimer) {
+          clearTimeout(this.reconnectTimer);
+          this.reconnectTimer = null;
+        }
+      });
     };
 
     this.ws.onmessage = (event) => {
       try {
         const msg = JSON.parse(event.data);
         if (msg.type === 'barcode' && msg.value) {
-          this.lastBarcode.set(msg.value);
-          this.onBarcodeScanned(msg.value);
+          this.zone.run(() => {
+            this.lastBarcode.set(msg.value);
+            this.onBarcodeScanned(msg.value);
+          });
         }
       } catch {
         // ignore non-JSON frames
@@ -348,13 +357,17 @@ export class AppComponent implements OnInit, OnDestroy {
     };
 
     this.ws.onclose = () => {
-      this.wsStatus.set('disconnected');
-      this.scheduleReconnect();
+      this.zone.run(() => {
+        this.wsStatus.set('disconnected');
+        this.scheduleReconnect();
+      });
     };
 
     this.ws.onerror = () => {
-      this.lastError.set(`Cannot reach ws://localhost:${5050}/ws`);
-      this.ws?.close();
+      this.zone.run(() => {
+        this.lastError.set(`Cannot reach ws://localhost:${5050}/ws`);
+        this.ws?.close();
+      });
     };
   }
 
@@ -387,7 +400,7 @@ export class AppComponent implements OnInit, OnDestroy {
       existing.total    = existing.sp * existing.qty;
       existing.savings  = (existing.mrp - existing.sp) * existing.qty;
       // refresh image in case it changed
-      if (product.image) existing.image = product.image;
+      if (product.thumb) existing.image = product.thumb;
       this.gridApi.applyTransaction({ update: [existing] });
     } else {
       this.slCounter++;
@@ -400,7 +413,7 @@ export class AppComponent implements OnInit, OnDestroy {
         sp:      product.sp,
         total:   product.sp * qtyToAdd,
         savings: (product.mrp - product.sp) * qtyToAdd,
-        image:   product.image,
+        image:   product.thumb,
       };
       this.rowData.push(newItem);
       this.gridApi.applyTransaction({ add: [newItem] });
@@ -439,6 +452,9 @@ export class AppComponent implements OnInit, OnDestroy {
 
   onGridReady(params: GridReadyEvent<CartItem>) {
     this.gridApi = params.api;
+    params.api.addEventListener('selectionChanged', () => {
+      this.selectedCount.set(this.gridApi.getSelectedRows().length);
+    });
   }
 
   clearCart() {
