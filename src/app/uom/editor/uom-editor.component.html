@@ -1,0 +1,311 @@
+<div class="uom-shell">
+
+  <!-- ── Header ───────────────────────────────────────────── -->
+  <header class="uom-header">
+    <div class="uom-header__brand">
+      <span class="uom-header__icon">⊛</span>
+      <div>
+        <div class="uom-header__title">Unit of Measure</div>
+        <div class="uom-header__sub">Pack Hierarchy</div>
+      </div>
+    </div>
+
+    <div class="uom-header__actions">
+      <button
+        class="mode-btn"
+        [class.mode-btn--active]="mode() === 'create'"
+        (click)="setMode('create')"
+      >
+        <span class="mode-btn__icon">＋</span> New UOM
+      </button>
+      <button
+        class="mode-btn"
+        [class.mode-btn--active]="mode() === 'edit'"
+        (click)="setMode('edit')"
+      >
+        <span class="mode-btn__icon">⌕</span> Find &amp; Edit
+      </button>
+    </div>
+  </header>
+
+  <!-- ── Search (edit mode) ──────────────────────────────── -->
+  @if (mode() === 'edit') {
+    <div class="search-panel">
+      <div class="search-panel__inner">
+        <span class="search-panel__icon">⌕</span>
+        <input
+          class="search-panel__input"
+          type="text"
+          placeholder="Search UOM by name…"
+          [value]="searchQuery()"
+          (input)="onSearchInput($any($event.target).value)"
+          (blur)="closeDropdown()"
+          autocomplete="off"
+        />
+        @if (isSearching()) {
+          <span class="search-panel__spinner"></span>
+        }
+        @if (showDropdown() && searchResults().length > 0) {
+          <div class="search-panel__dropdown">
+            @for (item of searchResults(); track item.id) {
+              <div class="search-result" (mousedown)="loadUom(item)">
+                <div class="search-result__info">
+                  <span class="search-result__name">{{ item.name }}</span>
+                  @if (item.description) {
+                    <span class="search-result__desc">{{ item.description }}</span>
+                  }
+                </div>
+                <div class="search-result__meta">
+                  <span class="search-result__level">L{{ item.packlevel }}</span>
+                  @if (item.baseid) {
+                    <span class="search-result__base">
+                      × {{ item.baseqty }} {{ allUoms() | uomName:item.baseid }}
+                    </span>
+                  }
+                </div>
+              </div>
+            }
+          </div>
+        }
+        @if (showDropdown() && searchResults().length === 0 && !isSearching()) {
+          <div class="search-panel__empty">No UOMs found</div>
+        }
+      </div>
+    </div>
+  }
+
+  <!-- ── Body ─────────────────────────────────────────────── -->
+  <div class="uom-body" [class.uom-body--locked]="mode() === 'edit' && !loadedId()">
+
+    @if (mode() === 'edit' && !loadedId()) {
+      <div class="editor-placeholder">
+        <span class="editor-placeholder__icon">⊛</span>
+        <p>Search for a UOM above to load it for editing</p>
+      </div>
+    }
+
+    @if (mode() === 'create' || loadedId()) {
+      <div class="uom-layout">
+
+        <!-- ── Form ───────────────────────────────────── -->
+        <div class="uom-form">
+
+          <!-- Name -->
+          <div class="field-group">
+            <label class="field-label" for="u-name">
+              Name <span class="field-required">*</span>
+            </label>
+            <input
+              id="u-name"
+              class="field-input"
+              [class.field-input--error]="errors().name"
+              type="text"
+              placeholder="e.g. Carton12, PCS, KG…"
+              [value]="form().name"
+              (input)="patch('name', $any($event.target).value)"
+              maxlength="50"
+            />
+            @if (errors().name) {
+              <span class="field-error">{{ errors().name }}</span>
+            }
+          </div>
+
+          <!-- Description -->
+          <div class="field-group">
+            <label class="field-label" for="u-desc">Description</label>
+            <input
+              id="u-desc"
+              class="field-input"
+              type="text"
+              placeholder="Optional description…"
+              [value]="form().description ?? ''"
+              (input)="patch('description', $any($event.target).value || null)"
+              maxlength="512"
+            />
+          </div>
+
+          <!-- Base UOM -->
+          <div class="field-group">
+            <label class="field-label" for="u-base">Base Unit</label>
+            <div class="field-select-wrap">
+              <select
+                id="u-base"
+                class="field-select"
+                (change)="onBaseChange($any($event.target).value)"
+              >
+                <option value="null" [selected]="form().baseid === null">— No base (root unit) —</option>
+                @for (uom of baseOptions(); track uom.id) {
+                  <option [value]="uom.id" [selected]="form().baseid === uom.id">
+                    {{ uom.name }}
+                  </option>
+                }
+              </select>
+              <span class="field-select-arrow">▾</span>
+            </div>
+            <span class="field-hint">Leave blank for a root unit like PCS, KG, L</span>
+          </div>
+
+          <!-- Base Qty — only shown when a base is selected -->
+          @if (form().baseid !== null) {
+            <div class="field-group">
+              <label class="field-label" for="u-baseqty">
+                Units per {{ allUoms() | uomName:form().baseid }}
+                <span class="field-required">*</span>
+              </label>
+              <input
+                id="u-baseqty"
+                class="field-input field-input--mono"
+                [class.field-input--error]="errors().baseqty"
+                type="number"
+                min="1"
+                step="1"
+                placeholder="e.g. 12"
+                [value]="form().baseqty ?? ''"
+                (input)="patch('baseqty', +$any($event.target).value || null)"
+              />
+              @if (errors().baseqty) {
+                <span class="field-error">{{ errors().baseqty }}</span>
+              }
+            </div>
+          }
+
+          <!-- Pack level (read-only derived) -->
+          <div class="field-group">
+            <label class="field-label">Pack Level</label>
+            <div class="packlevel-display">
+              <span class="packlevel-display__value">{{ form().packlevel }}</span>
+              <span class="packlevel-display__label">
+                {{ form().packlevel === 1 ? 'Root unit — no base' : 'Level ' + form().packlevel + ' in hierarchy' }}
+              </span>
+            </div>
+          </div>
+
+          <!-- Metadata (edit mode) -->
+          @if (savedMeta()) {
+            <div class="meta-block">
+              <div class="meta-row">
+                <span class="meta-key">ID</span>
+                <span class="meta-val">{{ loadedId() }}</span>
+              </div>
+              <div class="meta-row">
+                <span class="meta-key">Created</span>
+                <span class="meta-val">{{ savedMeta()!.created || '—' }}</span>
+              </div>
+              <div class="meta-row">
+                <span class="meta-key">By</span>
+                <span class="meta-val">{{ savedMeta()!.createdby || 'SYSTEM' }}</span>
+              </div>
+              <div class="meta-row">
+                <span class="meta-key">Updated</span>
+                <span class="meta-val">{{ savedMeta()!.updated || '—' }}</span>
+              </div>
+              <div class="meta-row">
+                <span class="meta-key">By</span>
+                <span class="meta-val">{{ savedMeta()!.updatedby || 'SYSTEM' }}</span>
+              </div>
+            </div>
+          }
+
+          <!-- Actions -->
+          <div class="form-actions">
+            @if (saveStatus() === 'success') {
+              <div class="status-pill status-pill--success">
+                ✓ {{ loadedId() ? 'UOM updated' : 'UOM created' }}
+              </div>
+            }
+            @if (saveStatus() === 'error') {
+              <div class="status-pill status-pill--error">⚠ {{ saveError() }}</div>
+            }
+            <button type="button" class="btn-secondary" (click)="resetForm()">Reset</button>
+            <button
+              type="button"
+              class="btn-primary"
+              [disabled]="saveStatus() === 'saving'"
+              (click)="onSubmit()"
+            >
+              @if (saveStatus() === 'saving') {
+                <span class="btn-spinner"></span> Saving…
+              } @else {
+                {{ loadedId() ? '⟳ Update UOM' : '＋ Create UOM' }}
+              }
+            </button>
+          </div>
+
+        </div>
+
+        <!-- ── Hierarchy visualiser ──────────────────── -->
+        <div class="hierarchy-panel">
+          <div class="hierarchy-panel__title">Pack Hierarchy</div>
+
+          @if (chainLoading()) {
+            <div class="hierarchy-loading">
+              <span class="hierarchy-loading__spinner"></span>
+              <span>Loading chain…</span>
+            </div>
+          }
+
+          @if (!chainLoading()) {
+            <div class="hierarchy-chain">
+
+              @for (node of chain(); track node.id) {
+                <div class="chain-node">
+                  <div class="chain-node__box">
+                    <span class="chain-node__name">{{ node.name }}</span>
+                  </div>
+                  <div class="chain-connector">
+                    <span class="chain-connector__line"></span>
+                    <span class="chain-connector__qty">{{ node.baseqty }}×</span>
+                    <span class="chain-connector__line"></span>
+                    <span class="chain-connector__arrow">▲</span>
+                  </div>
+                </div>
+              }
+
+              @if (form().name || form().baseid !== null) {
+                <div class="chain-node chain-node--current">
+                  <div class="chain-node__box chain-node__box--current">
+                    <span class="chain-node__name">{{ form().name || '(new unit)' }}</span>
+                    <span class="chain-node__level">L{{ form().packlevel }}</span>
+                  </div>
+                </div>
+              }
+
+              @if (chain().length === 0 && !form().name && form().baseid === null) {
+                <div class="hierarchy-empty">
+                  <span class="hierarchy-empty__icon">⊛</span>
+                  <p>Select a base unit to see<br>the pack hierarchy</p>
+                </div>
+              }
+
+              @if (form().baseid === null && form().packlevel === 1 && form().name) {
+                <div class="hierarchy-root-badge">Root unit — no base</div>
+              }
+
+            </div>
+          }
+
+          @if (allUoms().length > 0) {
+            <div class="uom-reference">
+              <div class="uom-reference__title">All UOMs</div>
+              @for (u of allUoms(); track u.id) {
+                <div class="uom-ref-row" [class.uom-ref-row--active]="u.id === loadedId()">
+                  <span class="uom-ref-row__level">L{{ u.packlevel }}</span>
+                  <span class="uom-ref-row__name">{{ u.name }}</span>
+                  @if (u.baseid) {
+                    <span class="uom-ref-row__base">
+                      × {{ u.baseqty }} {{ allUoms() | uomName:u.baseid }}
+                    </span>
+                  }
+                </div>
+              }
+            </div>
+          }
+
+        </div>
+
+      </div>
+    }
+
+  </div>
+
+</div>

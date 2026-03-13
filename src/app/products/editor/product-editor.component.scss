@@ -20,7 +20,7 @@ $font-mono:     'JetBrains Mono', monospace;
 // ── Host ──────────────────────────────────────────────────────────────────
 :host {
   display: block;
-  min-height: 100vh;
+  min-height: 100%;
   background: $bg-base;
   color: $text-primary;
   font-family: $font-body;
@@ -30,7 +30,7 @@ $font-mono:     'JetBrains Mono', monospace;
 .editor-shell {
   display: grid;
   grid-template-rows: 56px auto 1fr;
-  min-height: 100vh;
+  min-height: 100%;
   max-width: 1000px;
   margin: 0 auto;
 }

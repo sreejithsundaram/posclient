@@ -2,7 +2,7 @@
 
 :host {
   display: block;
-  height: 100vh;
+  height: 100%;
   background: #060b14;
   color: #e2e8f0;
   font-family: 'Rajdhani', sans-serif;
@@ -12,7 +12,7 @@
 .pos-shell {
   display: grid;
   grid-template-rows: 56px auto 1fr 90px;
-  height: 100vh;
+  height: 100%;
   overflow: hidden;
 }
 
