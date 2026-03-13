@@ -244,17 +244,23 @@ export class UomEditorComponent implements OnInit {
     if (!this.validate()) return;
 
     const f = this.form();
-    const payload: Partial<UomRecord> = {
-      ...f,
-      updatedby: 'SYSTEM',
-      createdby: this.loadedId() ? this.savedMeta()?.createdby || 'SYSTEM' : 'SYSTEM',
-    };
-
     this.saveStatus.set('saving');
 
     const req$ = this.loadedId()
-      ? this.http.put<UomRecord>(`/api/uom/${this.loadedId()}`, payload)
-      : this.http.post<UomRecord>('/api/uom', payload);
+      ? this.http.put<UomRecord>(`/api/uom/${this.loadedId()}`, {
+          name:        f.name,
+          description: f.description,
+          baseid:      f.baseid,
+          baseqty:     f.baseqty,
+          packlevel:   f.packlevel,
+          updatedby:   'SYSTEM',
+        })
+      : this.http.post<UomRecord>('/api/uom', {
+          name:        f.name,
+          description: f.description,
+          baseid:      f.baseid,
+          baseqty:     f.baseqty,
+        });
 
     req$.pipe(catchError(err => {
       this.saveStatus.set('error');
