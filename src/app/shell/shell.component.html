@@ -7,6 +7,18 @@
     <div class="sidebar__brand">
       <span class="sidebar__brand-icon">▦</span>
       <span class="sidebar__brand-name">POS Suite</span>
+      <div class="sidebar__indicators">
+        <span
+          class="indicator"
+          [attr.data-state]="apiStatus()"
+          [title]="apiStatus() === 'online' ? 'POS Server Online' : apiStatus() === 'offline' ? 'POS Server Offline — check API connection' : 'Checking POS Server…'"
+        ></span>
+        <span
+          class="indicator indicator--ws"
+          [attr.data-state]="scannerStatus()"
+          title="POS2MTS — Point-of-Sale to Mobile Transport Service{{ scannerStatus() === 'connected' ? ': Connected' : scannerStatus() === 'connecting' ? ': Connecting…' : ': Disconnected' }}"
+        ></span>
+      </div>
     </div>
 
     <!-- Nav links -->
@@ -43,6 +55,17 @@
         <span class="nav-item__label">Units of Measure</span>
         <span class="nav-item__pip"></span>
       </a>
+
+      <a
+        class="nav-item"
+        [class.nav-item--active]="activeRoute() === 'stock'"
+        (click)="navigate('stock')"
+        title="Stock Controller"
+      >
+        <span class="nav-item__icon">⬢</span>
+        <span class="nav-item__label">Stock</span>
+        <span class="nav-item__pip"></span>
+      </a>
     </nav>
 
     <!-- Collapse toggle -->
@@ -58,15 +81,10 @@
 
   <!-- ── Main content ──────────────────────────────────────── -->
   <main class="shell__content">
-    @if (activeRoute() === 'terminal') {
-      <app-root></app-root>
-    }
-    @if (activeRoute() === 'products') {
-      <app-product-editor></app-product-editor>
-    }
-    @if (activeRoute() === 'uom') {
-      <app-uom-editor></app-uom-editor>
-    }
+    <app-root              [isActive]="activeRoute() === 'terminal'"  [class.route--hidden]="activeRoute() !== 'terminal'"  (scannerStatusChange)="onScannerStatus($event)"></app-root>
+    <app-product-editor    [isActive]="activeRoute() === 'products'"  [class.route--hidden]="activeRoute() !== 'products'" (scannerStatusChange)="onScannerStatus($event)"></app-product-editor>
+    <app-uom-editor                                                    [class.route--hidden]="activeRoute() !== 'uom'"></app-uom-editor>
+    <app-stock-controller  [isActive]="activeRoute() === 'stock'"     [class.route--hidden]="activeRoute() !== 'stock'"    (scannerStatusChange)="onScannerStatus($event)"></app-stock-controller>
   </main>
 
 </div>

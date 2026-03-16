@@ -4,8 +4,11 @@ import {
   OnDestroy,
   NgZone,
   signal,
+  computed,
   ElementRef,
   ViewChild,
+  input,
+  output,
 } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
@@ -15,8 +18,10 @@ import { debounceTime, distinctUntilChanged, switchMap, catchError } from 'rxjs/
 // ── Domain types ─────────────────────────────────────────────────────────────
 
 export interface Uom {
-  id: number;
-  name: string;
+  id:        number;
+  name:      string;
+  packlevel: number;
+  baseid:    number | null;
 }
 
 export interface ProductPayload {
@@ -27,10 +32,11 @@ export interface ProductPayload {
   barcode: string;
   mrp: number | null;
   sp: number | null;
-  thumb: string;        // base64, API stores as varbinary
-  picture: string;      // base64, API stores as varbinary
+  thumb: string;
+  picture: string;
   uomid: number | null;
   sellable: boolean;
+  baseproductid: number | null;
   created?: string;
   createdby?: string;
   updated?: string;
@@ -55,6 +61,7 @@ interface FormErrors {
   sp?: string;
   uomid?: string;
   barcode?: string;
+  baseproductid?: string;
 }
 
 // ── Empty form factory ───────────────────────────────────────────────────────
@@ -71,6 +78,7 @@ function emptyForm(): ProductPayload {
     picture: '',
     uomid: null,
     sellable: true,
+    baseproductid: null,
   };
 }
 
@@ -84,6 +92,8 @@ function emptyForm(): ProductPayload {
   styleUrl: './product-editor.component.scss',
 })
 export class ProductEditorComponent implements OnInit, OnDestroy {
+  readonly isActive = input<boolean>(true);
+
   @ViewChild('searchInput') searchInputRef!: ElementRef<HTMLInputElement>;
   @ViewChild('thumbFileInput') thumbFileInputRef!: ElementRef<HTMLInputElement>;
   @ViewChild('pictureFileInput') pictureFileInputRef!: ElementRef<HTMLInputElement>;
@@ -95,7 +105,13 @@ export class ProductEditorComponent implements OnInit, OnDestroy {
   private barcodeBuffer = '';
   private barcodeTimer: any = null;
 
+  readonly scannerStatusChange = output<'connecting' | 'connected' | 'disconnected'>();
   scannerStatus = signal<'connecting' | 'connected' | 'disconnected'>('disconnected');
+
+  private setScanner(s: 'connecting' | 'connected' | 'disconnected') {
+    this.scannerStatus.set(s);
+    this.scannerStatusChange.emit(s);
+  }
 
   // ── Mode ────────────────────────────────────────────────
   mode = signal<'create' | 'edit'>('create');
@@ -137,6 +153,10 @@ export class ProductEditorComponent implements OnInit, OnDestroy {
     this.loadedId.set(null);
     this.barcodeConfirm.set('');
     this.barcodeScanned.set(false);
+    this.selectedBaseProduct.set(null);
+    this.baseProductQuery.set('');
+    this.baseProductResults.set([]);
+    this.showBaseProductDropdown.set(false);
   }
 
   // ── Barcode confirm + scan state ─────────────────────────
@@ -200,31 +220,28 @@ export class ProductEditorComponent implements OnInit, OnDestroy {
 
   private connectScanner() {
     const url = 'ws://localhost:5050/ws';
-    console.log('[Scanner] Connecting to', url);
-    this.scannerStatus.set('connecting');
+    this.setScanner('connecting');
     this.ws = new WebSocket(url);
 
     this.ws.onopen = () => {
-      console.log('[Scanner] Connected');
-      this.zone.run(() => this.scannerStatus.set('connected'));
+      this.zone.run(() => this.setScanner('connected'));
     };
 
     this.ws.onmessage = (event) => {
       try {
         const msg = JSON.parse(event.data);
         if (msg.type === 'barcode' && msg.value) {
-          console.log('[Scanner] Barcode received:', msg.value);
-          this.zone.run(() => this.applyScannedBarcode(msg.value));
+          this.zone.run(() => {
+            if (!this.isActive() || document.visibilityState !== 'visible') return;
+            this.applyScannedBarcode(msg.value);
+          });
         }
-      } catch (e) {
-        console.error('[Scanner] Failed to parse message:', event.data, e);
-      }
+      } catch {}
     };
 
-    this.ws.onclose = (event) => {
-      console.log('[Scanner] Disconnected — code:', event.code);
+    this.ws.onclose = () => {
       this.zone.run(() => {
-        this.scannerStatus.set('disconnected');
+        this.setScanner('disconnected');
         this.wsReconnectTimer = setTimeout(() => this.connectScanner(), 2000);
       });
     };
@@ -320,6 +337,23 @@ export class ProductEditorComponent implements OnInit, OnDestroy {
   uoms = signal<Uom[]>([]);
   uomLoading = signal(false);
 
+  // Derives the full UOM record for the currently selected uomid
+  selectedUom = computed(() =>
+    this.uoms().find(u => u.id === this.form().uomid) ?? null
+  );
+
+  // True when the selected UOM is not a root (packlevel > 1), meaning
+  // it represents a pack of something — user must link a base product
+  requiresBaseProduct = computed(() =>
+    (this.selectedUom()?.packlevel ?? 1) > 1
+  );
+
+  // The base UOM that base-product candidates must use
+  baseUomId = computed(() => this.selectedUom()?.baseid ?? null);
+  baseUomName = computed(() =>
+    this.uoms().find(u => u.id === this.baseUomId())?.name ?? ''
+  );
+
   private loadUoms() {
     this.uomLoading.set(true);
     this.http
@@ -329,6 +363,53 @@ export class ProductEditorComponent implements OnInit, OnDestroy {
         this.uoms.set(data);
         this.uomLoading.set(false);
       });
+  }
+
+  onUomChange(uomid: number | null) {
+    this.patch('uomid', uomid);
+    // When UOM changes, clear any previously selected base product
+    this.patch('baseproductid', null);
+    this.baseProductQuery.set('');
+    this.baseProductResults.set([]);
+    this.showBaseProductDropdown.set(false);
+    this.selectedBaseProduct.set(null);
+  }
+
+  // ── Base product search ───────────────────────────────────
+  private baseProductSubject = new Subject<string>();
+  baseProductQuery          = signal('');
+  baseProductResults        = signal<ProductSearchResult[]>([]);
+  isBaseProductSearching    = signal(false);
+  showBaseProductDropdown   = signal(false);
+  selectedBaseProduct       = signal<ProductSearchResult | null>(null);
+
+  onBaseProductInput(value: string) {
+    this.baseProductQuery.set(value);
+    if (!value) {
+      this.patch('baseproductid', null);
+      this.selectedBaseProduct.set(null);
+    }
+    this.showBaseProductDropdown.set(false);
+    this.baseProductSubject.next(value);
+  }
+
+  closeBaseProductDropdown() {
+    setTimeout(() => this.showBaseProductDropdown.set(false), 150);
+  }
+
+  selectBaseProduct(item: ProductSearchResult) {
+    this.selectedBaseProduct.set(item);
+    this.baseProductQuery.set(item.name);
+    this.patch('baseproductid', item.id);
+    this.showBaseProductDropdown.set(false);
+  }
+
+  clearBaseProduct() {
+    this.selectedBaseProduct.set(null);
+    this.baseProductQuery.set('');
+    this.patch('baseproductid', null);
+    this.baseProductResults.set([]);
+    this.showBaseProductDropdown.set(false);
   }
 
   // ── Product search (edit mode) ────────────────────────────
@@ -360,8 +441,6 @@ export class ProductEditorComponent implements OnInit, OnDestroy {
   loadProduct(item: ProductSearchResult) {
     this.searchQuery.set(item.name);
     this.showSearchDropdown.set(false);
-    console.log('[Editor] Loading product id:', item.id);
-    // Fetch full product details by ID
     this.http
       .get<ProductPayload>(`/api/Products?id=${item.id}`)
       .pipe(catchError((err) => {
@@ -369,7 +448,6 @@ export class ProductEditorComponent implements OnInit, OnDestroy {
         return of(null);
       }))
       .subscribe((product) => {
-        console.log('[Editor] Product response:', product);
         if (!product) return;
         this.loadedId.set(product.id ?? item.id);
         const { image: _img, ...rest } = product as any;
@@ -377,16 +455,32 @@ export class ProductEditorComponent implements OnInit, OnDestroy {
           ...rest,
           thumb:   _img ?? product.thumb   ?? '',
           picture: product.picture ?? '',
+          baseproductid: product.baseproductid ?? null,
         };
         this.form.set({ ...emptyForm(), ...normalised });
         this.barcodeConfirm.set(normalised.barcode ?? '');
         this.barcodeScanned.set(false);
         this.thumbPreview.set(normalised.thumb ? `data:image/jpeg;base64,${normalised.thumb}` : null);
         this.picturePreview.set(normalised.picture ? `data:image/jpeg;base64,${normalised.picture}` : null);
-        // If no manual thumb stored, assume auto mode
         this.autoThumb.set(!normalised.thumb && !!normalised.picture);
         this.errors.set({});
         this.saveStatus.set('idle');
+
+        // Restore base product display if present
+        if (normalised.baseproductid) {
+          this.http
+            .get<ProductPayload>(`/api/Products?id=${normalised.baseproductid}`)
+            .pipe(catchError(() => of(null)))
+            .subscribe(bp => {
+              if (bp) {
+                this.selectedBaseProduct.set({ id: bp.id!, code: bp.code, name: bp.name });
+                this.baseProductQuery.set(bp.name);
+              }
+            });
+        } else {
+          this.selectedBaseProduct.set(null);
+          this.baseProductQuery.set('');
+        }
       });
   }
 
@@ -404,6 +498,8 @@ export class ProductEditorComponent implements OnInit, OnDestroy {
     if (f.barcode && f.barcode !== this.barcodeConfirm())
                                errs.barcode = 'Barcodes do not match';
     if (!f.uomid)              errs.uomid  = 'UOM is required';
+    if (this.requiresBaseProduct() && !f.baseproductid)
+                               errs.baseproductid = `Select the base ${this.baseUomName()} product`;
 
     this.errors.set(errs);
     return Object.keys(errs).length === 0;
@@ -481,7 +577,7 @@ export class ProductEditorComponent implements OnInit, OnDestroy {
         }
         this.isSearching.set(true);
         return this.http
-          .get<ProductSearchResult[]>(`/api/products/search?q=${encodeURIComponent(query)}`)
+          .get<ProductSearchResult[]>(`/api/products/search?q=${encodeURIComponent(query)}&pos=false`)
           .pipe(catchError(() => of([])));
       })
     ).subscribe((results) => {
@@ -489,10 +585,34 @@ export class ProductEditorComponent implements OnInit, OnDestroy {
       this.isSearching.set(false);
       this.showSearchDropdown.set(results.length > 0 || this.searchQuery().length >= 3);
     });
+
+    this.baseProductSubject.pipe(
+      debounceTime(250),
+      distinctUntilChanged(),
+      switchMap((query) => {
+        const baseUom = this.baseUomId();
+        if (query.length < 2 || !baseUom) {
+          this.baseProductResults.set([]);
+          this.isBaseProductSearching.set(false);
+          return of([]);
+        }
+        this.isBaseProductSearching.set(true);
+        return this.http
+          .get<ProductSearchResult[]>(
+            `/api/products/search?q=${encodeURIComponent(query)}&uomid=${baseUom}&pos=false`
+          )
+          .pipe(catchError(() => of([])));
+      })
+    ).subscribe((results) => {
+      this.baseProductResults.set(results);
+      this.isBaseProductSearching.set(false);
+      this.showBaseProductDropdown.set(results.length > 0 || this.baseProductQuery().length >= 2);
+    });
   }
 
   ngOnDestroy() {
     this.searchSubject.complete();
+    this.baseProductSubject.complete();
     this.disconnectScanner();
     if (this.barcodeFlashTimer) clearTimeout(this.barcodeFlashTimer);
   }

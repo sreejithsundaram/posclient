@@ -8,31 +8,12 @@
     </div>
 
     <div class="topbar__status">
-      <div class="api-badge" [attr.data-state]="apiStatus()">
-        <span class="api-badge__dot"></span>
-        <span class="api-badge__label">{{
-          apiStatus() === 'online'   ? 'API Online'
-          : apiStatus() === 'offline' ? 'API Offline'
-          : 'API…'
-        }}</span>
-      </div>
-
-      <div class="ws-badge" [attr.data-state]="wsStatus()">
-        <span class="ws-badge__dot"></span>
-        <span class="ws-badge__label">{{
-          wsStatus() === 'connected' ? 'Scanner Connected'
-          : wsStatus() === 'connecting' ? 'Connecting…'
-          : 'Scanner Offline'
-        }}</span>
-      </div>
-
       @if (lastBarcode()) {
         <div class="last-scan">
           <span class="last-scan__label">LAST SCAN</span>
           <span class="last-scan__value">{{ lastBarcode() }}</span>
         </div>
       }
-
       @if (lastError()) {
         <div class="error-pill">⚠ {{ lastError() }}</div>
       }

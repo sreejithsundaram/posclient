@@ -11,15 +11,6 @@
     </div>
 
     <div class="editor-header__mode">
-      <div class="ws-badge" [attr.data-state]="scannerStatus()">
-        <span class="ws-badge__dot"></span>
-        <span class="ws-badge__label">{{
-          scannerStatus() === 'connected'    ? 'Scanner Connected'
-          : scannerStatus() === 'connecting' ? 'Connecting…'
-          : 'Scanner Offline'
-        }}</span>
-      </div>
-
       <button
         class="mode-btn"
         [class.mode-btn--active]="mode() === 'create'"
@@ -411,12 +402,13 @@
                     id="f-uom"
                     class="field-select"
                     [class.field-select--error]="errors().uomid"
-                    [value]="form().uomid ?? ''"
-                    (change)="patch('uomid', +$any($event.target).value)"
+                    [ngModel]="form().uomid ?? ''"
+                    (ngModelChange)="onUomChange($event || null)"
+                    name="uomid"
                   >
                     <option value="" disabled>Select UOM…</option>
                     @for (uom of uoms(); track uom.id) {
-                      <option [value]="uom.id">{{ uom.name }}</option>
+                      <option [ngValue]="uom.id">{{ uom.name }}</option>
                     }
                   </select>
                   <span class="field-select-arrow">▾</span>
@@ -429,6 +421,93 @@
                 }
               </div>
             </div>
+
+            <!-- Base Product — shown when UOM is non-root (packlevel > 1) -->
+            @if (requiresBaseProduct()) {
+              <div class="field-group base-product-group">
+                <label class="field-label" for="f-baseprod">
+                  Base Product
+                  <span class="field-required">*</span>
+                  <span class="field-label__hint">
+                    — the {{ baseUomName() }} product this is packed from
+                  </span>
+                </label>
+
+                <div class="base-product-search">
+                  <div class="base-product-search__input-wrap">
+                    <span class="base-product-search__icon">⬡</span>
+                    <input
+                      id="f-baseprod"
+                      class="field-input base-product-search__input"
+                      [class.field-input--error]="errors().baseproductid"
+                      [class.base-product-search__input--selected]="selectedBaseProduct()"
+                      type="text"
+                      [placeholder]="'Search ' + baseUomName() + ' products…'"
+                      [value]="baseProductQuery()"
+                      (input)="onBaseProductInput($any($event.target).value)"
+                      (blur)="closeBaseProductDropdown()"
+                      autocomplete="off"
+                    />
+                    @if (isBaseProductSearching()) {
+                      <span class="base-product-search__spinner"></span>
+                    }
+                    @if (selectedBaseProduct()) {
+                      <button type="button" class="base-product-search__clear" (click)="clearBaseProduct()">✕</button>
+                    }
+                  </div>
+
+                  @if (showBaseProductDropdown() && baseProductResults().length > 0) {
+                    <div class="base-product-search__dropdown">
+                      @for (item of baseProductResults(); track item.id) {
+                        <div
+                          class="base-product-result"
+                          [class.base-product-result--active]="item.id === form().baseproductid"
+                          (mousedown)="selectBaseProduct(item)"
+                        >
+                          <div class="base-product-result__thumb">
+                            @if (item.thumb) {
+                              <img [src]="'data:image/jpeg;base64,' + item.thumb" alt="" />
+                            } @else {
+                              <span>⬡</span>
+                            }
+                          </div>
+                          <div class="base-product-result__info">
+                            <span class="base-product-result__name">{{ item.name }}</span>
+                            <span class="base-product-result__meta">
+                              <span class="base-product-result__code">{{ item.code }}</span>
+                              @if (item.sp) {
+                                <span class="base-product-result__price">₹{{ item.sp.toFixed(2) }}</span>
+                              }
+                            </span>
+                          </div>
+                        </div>
+                      }
+                    </div>
+                  }
+
+                  @if (showBaseProductDropdown() && baseProductResults().length === 0 && !isBaseProductSearching() && baseProductQuery().length >= 2) {
+                    <div class="base-product-search__empty">
+                      No {{ baseUomName() }} products found
+                    </div>
+                  }
+                </div>
+
+                @if (selectedBaseProduct()) {
+                  <div class="base-product-selected">
+                    <span class="base-product-selected__label">Selected:</span>
+                    <span class="base-product-selected__name">{{ selectedBaseProduct()!.name }}</span>
+                    <span class="base-product-selected__code">{{ selectedBaseProduct()!.code }}</span>
+                  </div>
+                }
+
+                @if (errors().baseproductid) {
+                  <span class="field-error">{{ errors().baseproductid }}</span>
+                }
+                <span class="field-hint">
+                  e.g. if this is a Box of 12, select the individual {{ baseUomName() }} product
+                </span>
+              </div>
+            }
 
           </div>
         </div>

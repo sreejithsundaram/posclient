@@ -159,12 +159,26 @@
 }
 
 .error-pill {
-  font-size: 12px;
+  position: fixed;
+  bottom: 28px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 13px;
+  font-weight: 600;
   color: #ef9a9a;
   background: #1a0a0a;
-  border: 1px solid #4e1111;
-  padding: 3px 10px;
-  border-radius: 4px;
+  border: 1px solid #ff8a65;
+  padding: 10px 20px;
+  border-radius: 6px;
+  z-index: 999;
+  pointer-events: none;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+  animation: toast-in 0.15s ease;
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(8px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
 }
 
 /* ── Search bar ──────────────────────────────────────────── */

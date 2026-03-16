@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, NgZone, signal, computed, ElementRef, ViewChild } from '@angular/core';
+import { Component, OnInit, OnDestroy, NgZone, signal, computed, ElementRef, ViewChild, input, output } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { Subject, of } from 'rxjs';
@@ -33,7 +33,7 @@ export interface ProductResult {
   mrp: number;
   sp: number;
   stock: number;
-  thumb?: string; // base64 JPEG
+  image?: string; // base64 JPEG
 }
 
 @Component({
@@ -45,40 +45,40 @@ export interface ProductResult {
 })
 export class AppComponent implements OnInit, OnDestroy {
   @ViewChild('searchInput') searchInputRef!: ElementRef<HTMLInputElement>;
+  readonly isActive = input<boolean>(true);
+  readonly scannerStatusChange = output<'connecting' | 'connected' | 'disconnected'>();
 
   private gridApi!: GridApi<CartItem>;
   private ws: WebSocket | null = null;
   private reconnectTimer: any = null;
-  private healthTimer: any = null;
   private slCounter = 0;
 
-  // ── API health ───────────────────────────────────────────
-  apiStatus = signal<'checking' | 'online' | 'offline'>('checking');
-
   // ── Search ───────────────────────────────────────────────
-  // switchMap ensures any in-flight HTTP request is cancelled
-  // the moment the user types another character.
   private searchSubject = new Subject<string>();
-  searchQuery = signal('');
-  searchResults = signal<ProductResult[]>([]);
-  isSearching = signal(false);
-  showDropdown = signal(false);
+  searchQuery    = signal('');
+  searchResults  = signal<ProductResult[]>([]);
+  isSearching    = signal(false);
+  showDropdown   = signal(false);
 
-  // Qty input for manual add
-  manualQty = signal(1);
+  manualQty       = signal(1);
   selectedProduct = signal<ProductResult | null>(null);
 
   // ── WebSocket state ──────────────────────────────────────
-  wsStatus = signal<'connecting' | 'connected' | 'disconnected'>('disconnected');
+  wsStatus    = signal<'connecting' | 'connected' | 'disconnected'>('disconnected');
   lastBarcode = signal<string>('');
-  lastError = signal<string>('');
+  lastError   = signal<string>('');
+
+  private setWsStatus(s: 'connecting' | 'connected' | 'disconnected') {
+    this.wsStatus.set(s);
+    this.scannerStatusChange.emit(s);
+  }
 
   // ── Cart state ───────────────────────────────────────────
   private rowData: CartItem[] = [];
 
-  subTotal = signal(0);
+  subTotal     = signal(0);
   totalSavings = signal(0);
-  itemCount = signal(0);
+  itemCount    = signal(0);
 
   grandTotal = computed(() => this.subTotal() - this.totalSavings());
 
@@ -228,11 +228,6 @@ export class AppComponent implements OnInit, OnDestroy {
 
   ngOnInit() {
     this.connect();
-    this.checkHealth();
-    this.healthTimer = setInterval(() => this.checkHealth(), 15_000);
-
-    // switchMap cancels the previous HTTP request whenever a new search term
-    // arrives — so fast typing never gets stale results from a slow earlier req
     this.searchSubject.pipe(
       debounceTime(200),
       distinctUntilChanged(),
@@ -309,36 +304,20 @@ export class AppComponent implements OnInit, OnDestroy {
   ngOnDestroy() {
     this.disconnect();
     this.searchSubject.complete();
-    if (this.healthTimer) clearInterval(this.healthTimer);
-  }
-
-  // ── API health check ──────────────────────────────────────
-
-  private checkHealth() {
-    this.http.get('/api/POS/health', { observe: 'response' }).pipe(
-      catchError(() => of(null))
-    ).subscribe(res => {
-      this.apiStatus.set(res && res.ok ? 'online' : 'offline');
-    });
   }
 
   // ── WebSocket ─────────────────────────────────────────────
 
   private connect() {
-    // C# TetherMonitorService runs locally and forwards barcodes from the phone
     const url = `ws://localhost:${5050}/ws`;
-
-    this.wsStatus.set('connecting');
+    this.setWsStatus('connecting');
     this.ws = new WebSocket(url);
 
     this.ws.onopen = () => {
       this.zone.run(() => {
-        this.wsStatus.set('connected');
+        this.setWsStatus('connected');
         this.lastError.set('');
-        if (this.reconnectTimer) {
-          clearTimeout(this.reconnectTimer);
-          this.reconnectTimer = null;
-        }
+        if (this.reconnectTimer) { clearTimeout(this.reconnectTimer); this.reconnectTimer = null; }
       });
     };
 
@@ -347,6 +326,7 @@ export class AppComponent implements OnInit, OnDestroy {
         const msg = JSON.parse(event.data);
         if (msg.type === 'barcode' && msg.value) {
           this.zone.run(() => {
+            if (!this.isActive() || document.visibilityState !== 'visible') return;
             this.lastBarcode.set(msg.value);
             this.onBarcodeScanned(msg.value);
           });
@@ -358,7 +338,7 @@ export class AppComponent implements OnInit, OnDestroy {
 
     this.ws.onclose = () => {
       this.zone.run(() => {
-        this.wsStatus.set('disconnected');
+        this.setWsStatus('disconnected');
         this.scheduleReconnect();
       });
     };
@@ -383,12 +363,18 @@ export class AppComponent implements OnInit, OnDestroy {
 
   // ── Barcode → API → Grid ─────────────────────────────────
 
+  private showError(msg: string) {
+    this.lastError.set(msg);
+    setTimeout(() => this.lastError.set(''), 3000);
+  }
+
   private onBarcodeScanned(barcode: string) {
     this.http
-      .get<ProductResult>(`/api/products/${barcode}`)
-      .subscribe({
-        next: (product) => this.upsertItem(product),
-        error: () => this.lastError.set(`Product not found: ${barcode}`),
+      .get<ProductResult | null>(`/api/products/${barcode}`)
+      .pipe(catchError(() => of(null)))
+      .subscribe(product => {
+        if (!product) { this.showError(`Product not found: ${barcode}`); return; }
+        this.upsertItem(product);
       });
   }
 
@@ -400,7 +386,7 @@ export class AppComponent implements OnInit, OnDestroy {
       existing.total    = existing.sp * existing.qty;
       existing.savings  = (existing.mrp - existing.sp) * existing.qty;
       // refresh image in case it changed
-      if (product.thumb) existing.image = product.thumb;
+      if (product.image) existing.image = product.image;
       this.gridApi.applyTransaction({ update: [existing] });
     } else {
       this.slCounter++;
@@ -413,7 +399,7 @@ export class AppComponent implements OnInit, OnDestroy {
         sp:      product.sp,
         total:   product.sp * qtyToAdd,
         savings: (product.mrp - product.sp) * qtyToAdd,
-        image:   product.thumb,
+        image:   product.image,
       };
       this.rowData.push(newItem);
       this.gridApi.applyTransaction({ add: [newItem] });

@@ -1,0 +1,1043 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Rajdhani:wght@500;600;700&display=swap');
+
+// ── Design tokens ─────────────────────────────────────────────────────────────
+$bg-base:       #060b14;
+$bg-surface:    #0a0e1a;
+$bg-raised:     #0d1b2e;
+$bg-hover:      #0f1f3d;
+$border:        #1e2d4a;
+$border-active: #1565c0;
+$text-primary:  #e2e8f0;
+$text-muted:    #4a6fa5;
+$text-dim:      #2a3f5f;
+$accent-blue:   #64b5f6;
+$accent-green:  #69f0ae;
+$accent-orange: #ff8a65;
+$accent-red:    #ef9a9a;
+$font-body:     'Rajdhani', sans-serif;
+$font-mono:     'JetBrains Mono', monospace;
+
+// ── Host ──────────────────────────────────────────────────────────────────────
+:host {
+  display: block;
+  min-height: 100%;
+  background: $bg-base;
+  color: $text-primary;
+  font-family: $font-body;
+}
+
+// ── Shell ─────────────────────────────────────────────────────────────────────
+.stock-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: $bg-base;
+  overflow: hidden;
+}
+
+.toast {
+  position: fixed;
+  bottom: 28px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1e2d4a;
+  border: 1px solid $accent-orange;
+  color: $accent-orange;
+  font-family: $font-body;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 10px 20px;
+  border-radius: 6px;
+  z-index: 999;
+  pointer-events: none;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+  animation: toast-in 0.15s ease;
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(8px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+// ── Header ────────────────────────────────────────────────────────────────────
+.stock-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 28px;
+  height: 60px;
+  background: $bg-surface;
+  border-bottom: 1px solid $border;
+  flex-shrink: 0;
+
+  &__brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  &__icon {
+    font-size: 22px;
+    color: $accent-orange;
+  }
+
+  &__title {
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    color: $text-primary;
+  }
+
+  &__sub {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: $text-muted;
+  }
+
+  &__right {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+}
+
+// ── WS Badge ─────────────────────────────────────────────────────────────────
+.ws-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  background: $bg-raised;
+  border: 1px solid $border;
+  font-size: 11px;
+  font-weight: 600;
+  color: $text-muted;
+
+  &__dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: $text-dim;
+    transition: background 0.3s;
+  }
+
+  &[data-state='connected'] {
+    border-color: rgba(105, 240, 174, 0.3);
+    .ws-badge__dot { background: $accent-green; box-shadow: 0 0 6px $accent-green; }
+    .ws-badge__label { color: $accent-green; }
+  }
+
+  &[data-state='connecting'] {
+    .ws-badge__dot { background: $accent-orange; animation: pulse 1s infinite; }
+    .ws-badge__label { color: $accent-orange; }
+  }
+}
+
+// ── Stock search ──────────────────────────────────────────────────────────────
+.stock-search {
+  position: relative;
+
+  &__wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: $bg-raised;
+    border: 1px solid $border;
+    border-radius: 6px;
+    padding: 0 10px;
+    height: 34px;
+    width: 220px;
+    transition: border-color 0.15s;
+
+    &:focus-within { border-color: $border-active; }
+  }
+
+  &__icon { font-size: 13px; color: $text-muted; flex-shrink: 0; }
+
+  &__input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    font-family: $font-body;
+    font-size: 13px;
+    color: $text-primary;
+    &::placeholder { color: $text-dim; }
+  }
+
+  &__spinner {
+    width: 11px; height: 11px;
+    border: 2px solid rgba(100,181,246,0.25);
+    border-top-color: $accent-blue;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+    flex-shrink: 0;
+  }
+
+  &__dropdown {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    background: $bg-raised;
+    border: 1px solid $border-active;
+    border-radius: 6px;
+    z-index: 300;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    overflow: hidden;
+  }
+
+  &__result {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    cursor: pointer;
+    border-bottom: 1px solid $border;
+    &:last-child { border-bottom: none; }
+    &:hover { background: $bg-hover; }
+  }
+
+  &__id {
+    font-family: $font-mono;
+    font-size: 12px;
+    font-weight: 700;
+    color: $accent-blue;
+    flex: 1;
+  }
+
+  &__status {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+  }
+
+  &__date { font-size: 11px; color: $text-muted; }
+}
+
+// ── Refresh / icon button ─────────────────────────────────────────────────────
+.btn-icon {
+  width: 34px; height: 34px;
+  background: $bg-raised;
+  border: 1px solid $border;
+  border-radius: 5px;
+  color: $text-muted;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: border-color 0.15s, color 0.15s;
+
+  &:hover:not(:disabled) { border-color: $border-active; color: $accent-blue; }
+  &:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .spinning { display: inline-block; animation: spin 0.7s linear infinite; }
+}
+
+// ── Sections ──────────────────────────────────────────────────────────────────
+.stock-section {
+  padding: 14px 28px;
+  border-bottom: 1px solid $border;
+  flex-shrink: 0;
+
+  &--grid {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    border-bottom: none;
+    padding-bottom: 0;
+    min-height: 0; // required for flex child to shrink below content
+  }
+
+  &--locked {
+    opacity: 0.5;
+    pointer-events: none;
+  }
+}
+
+.section-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+
+  &__num {
+    font-family: $font-mono;
+    font-size: 10px;
+    font-weight: 700;
+    color: $text-dim;
+    letter-spacing: 1px;
+  }
+
+  &__text {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: $text-muted;
+  }
+
+  &__badge {
+    background: $border-active;
+    color: #fff;
+    font-family: $font-mono;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 7px;
+    border-radius: 10px;
+  }
+}
+
+.section-locked-msg {
+  font-size: 13px;
+  color: $text-dim;
+  font-style: italic;
+  padding: 8px 0;
+}
+
+// ── Stock Card ────────────────────────────────────────────────────────────────
+.stock-card {
+  background: $bg-raised;
+  border: 1px solid $border;
+  border-radius: 8px;
+  overflow: hidden;
+  position: relative;
+
+  &__body {
+    padding: 18px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  &__actions {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+}
+
+.status-ribbon {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 20px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: #060b14;
+
+  &__icon {
+    font-size: 14px;
+  }
+}
+
+// ── Creating state ────────────────────────────────────────────────────────────
+.creating-state {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 4px 0;
+
+  &__pulse {
+    position: relative;
+    width: 32px;
+    height: 32px;
+    flex-shrink: 0;
+  }
+
+  &__ring {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    border: 2px solid $text-muted;
+    animation: ring-pulse 1.6s ease-out infinite;
+    opacity: 0;
+  }
+
+  &__dot {
+    position: absolute;
+    inset: 8px;
+    border-radius: 50%;
+    background: $text-muted;
+  }
+
+  &__title {
+    font-size: 15px;
+    font-weight: 700;
+    color: $text-primary;
+  }
+
+  &__hint {
+    font-size: 12px;
+    color: $text-muted;
+    margin-top: 2px;
+  }
+}
+
+// ── Stock meta grid ───────────────────────────────────────────────────────────
+.stock-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px 24px;
+}
+
+.stock-meta-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+
+  &__key {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: $text-muted;
+  }
+
+  &__val {
+    font-size: 14px;
+    font-weight: 600;
+    color: $text-primary;
+
+    &--id {
+      font-family: $font-mono;
+      font-size: 13px;
+      color: $accent-blue;
+      letter-spacing: 1px;
+    }
+  }
+}
+
+// ── Status select ─────────────────────────────────────────────────────────────
+.status-select-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.posted-badge {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: $accent-blue;
+  padding: 6px 14px;
+  border: 1px solid rgba(100, 181, 246, 0.3);
+  border-radius: 4px;
+  background: rgba(100, 181, 246, 0.06);
+}
+
+// ── Scan panel ────────────────────────────────────────────────────────────────
+.scan-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+
+  &__row {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  &__search {
+    position: relative;
+    flex: 1;
+    min-width: 260px;
+  }
+}
+
+// ── Barcode box ───────────────────────────────────────────────────────────────
+.barcode-box {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  background: $bg-raised;
+  border: 1px solid $border;
+  border-radius: 6px;
+  padding: 0 12px;
+  height: 42px;
+  min-width: 220px;
+  transition: border-color 0.15s;
+
+  &:focus-within {
+    border-color: $border-active;
+    box-shadow: 0 0 0 2px rgba(21, 101, 192, 0.15);
+  }
+
+  &--scanned {
+    border-color: rgba(105, 240, 174, 0.5);
+    box-shadow: 0 0 0 2px rgba(105, 240, 174, 0.1);
+  }
+
+  &__icon {
+    font-size: 16px;
+    color: $accent-orange;
+    margin-right: 8px;
+    flex-shrink: 0;
+  }
+
+  &__input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    font-family: $font-mono;
+    font-size: 13px;
+    font-weight: 600;
+    color: $text-primary;
+    letter-spacing: 1px;
+    min-width: 0;
+
+    &::placeholder { color: $text-dim; font-weight: 400; letter-spacing: 0; }
+  }
+
+  // Pulsing dot — always visible, indicates scanner is listening
+  &__pulse {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: $accent-orange;
+    flex-shrink: 0;
+    margin-left: 8px;
+    animation: barcode-pulse 1.5s ease-in-out infinite;
+  }
+
+  &__flash {
+    font-size: 11px;
+    font-weight: 700;
+    color: $accent-green;
+    white-space: nowrap;
+    margin-left: 6px;
+  }
+  &__go {
+    background: none;
+    border: none;
+    color: $text-muted;
+    cursor: pointer;
+    font-size: 16px;
+    padding: 4px 2px;
+    flex-shrink: 0;
+    transition: color 0.1s;
+    &:hover { color: $accent-blue; }
+  }
+}
+
+@keyframes barcode-pulse {
+  0%, 100% { opacity: 0.3; transform: scale(0.8); }
+  50%       { opacity: 1;   transform: scale(1.2); }
+}
+
+.search-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: $bg-raised;
+  border: 1px solid $border;
+  border-radius: 6px;
+  padding: 0 12px;
+  transition: border-color 0.15s;
+
+  &:focus-within {
+    border-color: $border-active;
+    box-shadow: 0 0 0 2px rgba(21, 101, 192, 0.15);
+  }
+
+  &__icon {
+    font-size: 14px;
+    color: $text-muted;
+    flex-shrink: 0;
+  }
+}
+
+.search-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  padding: 10px 0;
+  font-family: $font-body;
+  font-size: 14px;
+  font-weight: 500;
+  color: $text-primary;
+
+  &::placeholder { color: $text-dim; }
+}
+
+.search-spinner {
+  width: 13px;
+  height: 13px;
+  border: 2px solid rgba(100, 181, 246, 0.25);
+  border-top-color: $accent-blue;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  flex-shrink: 0;
+}
+
+.search-clear {
+  background: none;
+  border: none;
+  color: $text-muted;
+  cursor: pointer;
+  font-size: 11px;
+  padding: 2px 4px;
+  flex-shrink: 0;
+  &:hover { color: $accent-red; }
+}
+
+.search-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: $bg-raised;
+  border: 1px solid $border-active;
+  border-radius: 6px;
+  z-index: 200;
+  max-height: 260px;
+  overflow-y: auto;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+
+  &--empty {
+    padding: 12px 16px;
+    font-size: 12px;
+    color: $text-muted;
+    font-style: italic;
+  }
+}
+
+.search-result {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  cursor: pointer;
+  border-bottom: 1px solid $border;
+  transition: background 0.1s;
+
+  &:last-child { border-bottom: none; }
+  &:hover { background: $bg-hover; }
+
+  &__thumb {
+    width: 32px;
+    height: 32px;
+    border-radius: 4px;
+    overflow: hidden;
+    background: $bg-surface;
+    border: 1px solid $border;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    color: $text-dim;
+    font-size: 14px;
+    img { width: 100%; height: 100%; object-fit: cover; }
+  }
+
+  &__info { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+  &__name { font-size: 13px; font-weight: 600; color: $text-primary; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  &__meta { display: flex; align-items: center; gap: 8px; }
+  &__code { font-family: $font-mono; font-size: 10px; color: $text-muted; }
+  &__barcode { font-family: $font-mono; font-size: 10px; color: $text-dim; }
+  &__price { font-family: $font-mono; font-size: 12px; color: $accent-green; flex-shrink: 0; }
+}
+
+// ── Selected product card ────────────────────────────────────────────────────
+.selected-product-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  background: $bg-raised;
+  border: 1px solid $border-active;
+  border-radius: 8px;
+  padding: 14px 16px;
+  box-shadow: 0 0 20px rgba(21, 101, 192, 0.1);
+
+  &__thumb {
+    width: 64px;
+    height: 64px;
+    border-radius: 6px;
+    overflow: hidden;
+    background: $bg-surface;
+    border: 1px solid $border;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+
+    img { width: 100%; height: 100%; object-fit: cover; }
+
+    &-placeholder { font-size: 28px; color: $text-dim; }
+  }
+
+  &__info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+  &__name { font-size: 15px; font-weight: 700; color: $text-primary; }
+  &__meta { display: flex; flex-wrap: wrap; gap: 6px; }
+
+  &__qty {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+    flex-shrink: 0;
+    min-width: 160px;
+  }
+}
+
+// ── Tags ─────────────────────────────────────────────────────────────────────
+.tag {
+  font-family: $font-mono;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 3px;
+  letter-spacing: 0.3px;
+
+  &--code  { background: rgba(100, 181, 246, 0.1); color: $accent-blue;   border: 1px solid rgba(100,181,246,0.2); }
+  &--uom   { background: rgba(105, 240, 174, 0.1); color: $accent-green;  border: 1px solid rgba(105,240,174,0.2); }
+  &--nonsell { background: rgba(239, 154, 154, 0.1); color: $accent-red;  border: 1px solid rgba(239,154,154,0.2); }
+}
+
+// ── Base breakdown ────────────────────────────────────────────────────────────
+.base-breakdown {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: $text-muted;
+
+  &__qty  { font-family: $font-mono; font-weight: 700; color: $accent-orange; }
+  &__unit { font-weight: 600; color: $text-primary; }
+  &__sep  { color: $text-dim; }
+  &__total { font-family: $font-mono; font-weight: 700; color: $accent-green; }
+  &__label { color: $text-muted; }
+}
+
+// ── Qty control ───────────────────────────────────────────────────────────────
+.qty-control {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  border: 1px solid $border;
+  border-radius: 6px;
+  overflow: hidden;
+  background: $bg-surface;
+
+  &__btn {
+    width: 32px;
+    height: 36px;
+    background: $bg-raised;
+    border: none;
+    color: $text-primary;
+    font-size: 16px;
+    cursor: pointer;
+    transition: background 0.1s, color 0.1s;
+
+    &:hover { background: $bg-hover; color: $accent-blue; }
+  }
+
+  &__input {
+    width: 64px;
+    height: 36px;
+    border: none;
+    border-left: 1px solid $border;
+    border-right: 1px solid $border;
+    background: $bg-surface;
+    color: $text-primary;
+    font-family: $font-mono;
+    font-size: 16px;
+    font-weight: 700;
+    text-align: center;
+    outline: none;
+
+    &::-webkit-inner-spin-button,
+    &::-webkit-outer-spin-button { -webkit-appearance: none; }
+  }
+}
+
+// ── Qty visual blocks ─────────────────────────────────────────────────────────
+.qty-visual {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  max-width: 160px;
+
+  &__block {
+    width: 8px;
+    height: 8px;
+    background: $accent-orange;
+    border-radius: 1px;
+    opacity: 0.7;
+  }
+
+  &__overflow {
+    font-family: $font-mono;
+    font-size: 9px;
+    color: $accent-orange;
+    align-self: center;
+    margin-left: 2px;
+  }
+
+  &__label {
+    width: 100%;
+    font-family: $font-mono;
+    font-size: 10px;
+    color: $accent-orange;
+    margin-top: 2px;
+  }
+}
+
+// ── Add button ────────────────────────────────────────────────────────────────
+.btn-add {
+  width: 100%;
+  padding: 9px 16px;
+  background: rgba(105, 240, 174, 0.1);
+  border: 1px solid rgba(105, 240, 174, 0.3);
+  border-radius: 6px;
+  color: $accent-green;
+  font-family: $font-body;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+
+  &:hover:not(:disabled) {
+    background: rgba(105, 240, 174, 0.18);
+    border-color: rgba(105, 240, 174, 0.5);
+  }
+
+  &:disabled { opacity: 0.4; cursor: not-allowed; }
+}
+
+// ── Grid summary bar ──────────────────────────────────────────────────────────
+.grid-summary {
+  display: flex;
+  gap: 0;
+  margin-bottom: 12px;
+  background: $bg-raised;
+  border: 1px solid $border;
+  border-radius: 6px;
+  overflow: hidden;
+
+  &__item {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    padding: 10px 20px;
+    border-right: 1px solid $border;
+
+    &:last-child { border-right: none; }
+  }
+
+  &__key {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: $text-muted;
+  }
+
+  &__val {
+    font-family: $font-mono;
+    font-size: 20px;
+    font-weight: 700;
+    color: $text-primary;
+
+    &--orange { color: $accent-orange; }
+  }
+}
+
+// ── Grid ─────────────────────────────────────────────────────────────────────
+.grid-wrap {
+  flex: 1;
+  min-height: 0;
+  border: 1px solid $border;
+  border-radius: 6px;
+  overflow: hidden;
+  position: relative;
+}
+
+.stock-grid {
+  width: 100%;
+  height: 100%;
+}
+
+.grid-empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: $text-muted;
+  pointer-events: none;
+  z-index: 1;
+
+  &__icon {
+    font-size: 36px;
+    color: $text-dim;
+    margin-bottom: 12px;
+  }
+
+  p {
+    font-size: 13px;
+    line-height: 1.7;
+    color: $text-muted;
+  }
+}
+
+// ── Grid delete button ────────────────────────────────────────────────────────
+:global(.grid-del-btn) {
+  background: none;
+  border: none;
+  color: #2a3f5f;
+  cursor: pointer;
+  font-size: 11px;
+  padding: 4px 8px;
+  border-radius: 3px;
+  transition: color 0.1s, background 0.1s;
+
+  &:hover {
+    color: #ef9a9a;
+    background: rgba(239, 154, 154, 0.1);
+  }
+}
+
+// ── Shared form atoms ─────────────────────────────────────────────────────────
+.field-label-sm {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: $text-muted;
+}
+
+.field-select-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.field-select {
+  appearance: none;
+  background: $bg-raised;
+  border: 1px solid $border;
+  border-radius: 5px;
+  padding: 6px 30px 6px 10px;
+  font-family: $font-body;
+  font-size: 13px;
+  font-weight: 600;
+  color: $text-primary;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.15s;
+
+  &:focus { border-color: $border-active; }
+  option { background: $bg-raised; }
+}
+
+.field-select-arrow {
+  position: absolute;
+  right: 9px;
+  pointer-events: none;
+  font-size: 10px;
+  color: $text-muted;
+}
+
+// ── Buttons ───────────────────────────────────────────────────────────────────
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 18px;
+  background: $border-active;
+  border: none;
+  border-radius: 5px;
+  color: #fff;
+  font-family: $font-body;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s;
+
+  &:hover:not(:disabled) { background: #1976d2; }
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
+}
+
+.btn-new {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  background: transparent;
+  border: 1px solid $border;
+  border-radius: 5px;
+  color: $text-muted;
+  font-family: $font-body;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+
+  &:hover {
+    border-color: $border-active;
+    color: $accent-blue;
+  }
+}
+
+.action-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+}
+
+.status-pill {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: 4px;
+
+  &--success {
+    background: rgba(105, 240, 174, 0.1);
+    color: $accent-green;
+    border: 1px solid rgba(105, 240, 174, 0.25);
+  }
+
+  &--error {
+    background: rgba(239, 154, 154, 0.1);
+    color: $accent-red;
+    border: 1px solid rgba(239, 154, 154, 0.25);
+  }
+}
+
+.btn-spinner {
+  width: 12px;
+  height: 12px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  flex-shrink: 0;
+}
+
+// ── Animations ────────────────────────────────────────────────────────────────
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+@keyframes ring-pulse {
+  0%   { transform: scale(0.6); opacity: 0.8; }
+  100% { transform: scale(1.6); opacity: 0; }
+}

@@ -1,0 +1,269 @@
+<div class="stock-shell">
+
+  @if (toast()) {
+    <div class="toast">{{ toast() }}</div>
+  }
+
+  <!-- ── Header ─────────────────────────────────────────────── -->
+  <header class="stock-header">
+    <div class="stock-header__brand">
+      <span class="stock-header__icon">⬢</span>
+      <div>
+        <div class="stock-header__title">Stock Controller</div>
+        <div class="stock-header__sub">Inventory Count</div>
+      </div>
+    </div>
+
+    <div class="stock-header__right">
+      <!-- Stock take search -->
+      <div class="stock-search">
+        <div class="stock-search__wrap">
+          <span class="stock-search__icon">⌕</span>
+          <input
+            class="stock-search__input"
+            type="text"
+            placeholder="Find stock take by ID…"
+            [value]="stockQuery()"
+            (input)="onStockSearchInput($any($event.target).value)"
+            (blur)="closeStockDropdown()"
+            autocomplete="off"
+          />
+          @if (isStockSearching()) { <span class="stock-search__spinner"></span> }
+        </div>
+        @if (showStockDropdown() && stockResults().length > 0) {
+          <div class="stock-search__dropdown">
+            @for (r of stockResults(); track r.id) {
+              <div class="stock-search__result" (mousedown)="loadStock(r)">
+                <span class="stock-search__id">{{ r.stocktakeid }}</span>
+                <span class="stock-search__status" [style.color]="STATUS_COLORS[r.status]">
+                  {{ STATUS_LABELS[r.status] }}
+                </span>
+                <span class="stock-search__date">{{ formatDate(r.start) }}</span>
+              </div>
+            }
+          </div>
+        }
+      </div>
+
+      <button class="btn-icon" title="Refresh" [disabled]="!stock() || refreshing()" (click)="refreshStock()">
+        <span [class.spinning]="refreshing()">⟳</span>
+      </button>
+      <button class="btn-new" (click)="newStock()">＋ New</button>
+    </div>
+  </header>
+
+  <!-- ── Section 1: Stock header ──────────────────────────── -->
+  <section class="stock-section stock-section--header">
+    <div class="stock-card">
+      <div class="status-ribbon" [style.background]="STATUS_COLORS[uiStatus()]">
+        <span>{{
+          uiStatus() === 0 ? '◌' : uiStatus() === 1 ? '◉' : uiStatus() === 2 ? '◐' : '◆'
+        }}</span>
+        {{ STATUS_LABELS[uiStatus()] }}
+      </div>
+
+      <div class="stock-card__body">
+        @if (!stock()) {
+          <div class="creating-state">
+            <div class="creating-state__pulse">
+              <span class="creating-state__ring"></span>
+              <span class="creating-state__dot"></span>
+            </div>
+            <div class="creating-state__text">
+              <div class="creating-state__title">New Stock Take</div>
+              <div class="creating-state__hint">Save to generate a Stock Take ID and open for counting</div>
+            </div>
+          </div>
+        } @else {
+          <div class="stock-meta-grid">
+            <div class="stock-meta-item">
+              <span class="stock-meta-item__key">Stock Take ID</span>
+              <span class="stock-meta-item__val stock-meta-item__val--id">{{ stock()!.stocktakeid }}</span>
+            </div>
+            <div class="stock-meta-item">
+              <span class="stock-meta-item__key">Started</span>
+              <span class="stock-meta-item__val">{{ formatDate(stock()!.start) }}</span>
+            </div>
+            @if (stock()!.finish) {
+              <div class="stock-meta-item">
+                <span class="stock-meta-item__key">Finished</span>
+                <span class="stock-meta-item__val">{{ formatDate(stock()!.finish!) }}</span>
+              </div>
+            }
+            <div class="stock-meta-item">
+              <span class="stock-meta-item__key">Created by</span>
+              <span class="stock-meta-item__val">{{ stock()!.createdby }}</span>
+            </div>
+          </div>
+        }
+
+        <div class="stock-card__actions">
+          @if (stock() && !isPosted()) {
+            <div class="status-select-wrap">
+              <label class="field-label-sm">Status</label>
+              <div class="field-select-wrap">
+                <select class="field-select" [value]="pendingStatus()"
+                  (change)="onStatusChange($any($event.target).value)">
+                  <option value="1" [disabled]="uiStatus() > 1">Open</option>
+                  <option value="2" [disabled]="uiStatus() > 2">Counting</option>
+                  <option value="3">Posted</option>
+                </select>
+                <span class="field-select-arrow">▾</span>
+              </div>
+            </div>
+          }
+          @if (isPosted()) {
+            <div class="posted-badge">◆ Posted — read only</div>
+          }
+          <div class="action-group">
+            @if (saveStatus() === 'success') { <div class="status-pill status-pill--success">✓ Saved</div> }
+            @if (saveStatus() === 'error')   { <div class="status-pill status-pill--error">⚠ {{ saveError() }}</div> }
+            @if (!isPosted()) {
+              <button class="btn-primary" [disabled]="saveStatus() === 'saving'" (click)="saveStock()">
+                @if (saveStatus() === 'saving') { <span class="btn-spinner"></span> Saving… }
+                @else if (!stock()) { ⟳ Save &amp; Open }
+                @else { ⟳ Update Status }
+              </button>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Section 2: Product add ───────────────────────────── -->
+  <section class="stock-section stock-section--scan" [class.stock-section--locked]="!stock() || isPosted()">
+
+    @if (!stock()) {
+      <div class="section-locked-msg">Save the stock take first to begin adding products</div>
+    } @else if (isPosted()) {
+      <div class="section-locked-msg">This stock take is posted and cannot be modified</div>
+    } @else {
+      <div class="scan-panel">
+        <div class="scan-panel__row">
+
+          <!-- Product search -->
+          <div class="scan-panel__search">
+            <div class="search-input-wrap">
+              <span class="search-input-wrap__icon">⬡</span>
+              <input class="search-input" type="text" placeholder="Search product…"
+                [value]="productQuery()"
+                (input)="onProductInput($any($event.target).value)"
+                (blur)="closeDropdown()" autocomplete="off" />
+              @if (isSearching()) { <span class="search-spinner"></span> }
+              @if (selectedProduct()) { <button type="button" class="search-clear" (click)="clearProduct()">✕</button> }
+            </div>
+            @if (showDropdown() && productResults().length > 0) {
+              <div class="search-dropdown">
+                @for (item of productResults(); track item.id) {
+                  <div class="search-result" (mousedown)="selectProduct(item)">
+                    <div class="search-result__thumb">
+                      @if (item.thumb) { <img [src]="'data:image/jpeg;base64,' + item.thumb" alt="" /> }
+                      @else { <span>⬡</span> }
+                    </div>
+                    <div class="search-result__info">
+                      <span class="search-result__name">{{ item.name }}</span>
+                      <span class="search-result__meta">
+                        <span class="search-result__code">{{ item.code }}</span>
+                        @if (item.barcode) { <span class="search-result__barcode">▌{{ item.barcode }}</span> }
+                      </span>
+                    </div>
+                    @if (item.sp) { <span class="search-result__price">₹{{ item.sp.toFixed(2) }}</span> }
+                  </div>
+                }
+              </div>
+            }
+            @if (showDropdown() && productResults().length === 0 && !isSearching() && productQuery().length >= 2) {
+              <div class="search-dropdown search-dropdown--empty">No products found</div>
+            }
+          </div>
+
+          <!-- Barcode box -->
+          <div class="barcode-box" [class.barcode-box--scanned]="barcodeScanned()">
+            <span class="barcode-box__icon">▌</span>
+            <input #barcodeRef class="barcode-box__input" type="text"
+              placeholder="Scan barcode…"
+              [value]="barcodeInput()"
+              (input)="onBarcodeInput($any($event.target).value)"
+              (keydown.enter)="onBarcodeEnter()"
+              autocomplete="off" />
+            <span class="barcode-box__pulse"></span>
+            @if (barcodeScanned()) { <span class="barcode-box__flash">⚡ Scanned</span> }
+            <button type="button" class="barcode-box__go" (click)="onBarcodeEnter()">→</button>
+          </div>
+        </div>
+
+        <!-- Selected product card -->
+        @if (selectedProduct()) {
+          <div class="selected-product-card">
+            <div class="selected-product-card__thumb">
+              @if (selectedProduct()!.thumb) {
+                <img [src]="'data:image/jpeg;base64,' + selectedProduct()!.thumb" alt="" />
+              } @else {
+                <span class="selected-product-card__thumb-placeholder">⬡</span>
+              }
+            </div>
+            <div class="selected-product-card__info">
+              <div class="selected-product-card__name">{{ selectedProduct()!.name }}</div>
+              <div class="selected-product-card__meta">
+                <span class="tag tag--code">{{ selectedProduct()!.code }}</span>
+              </div>
+            </div>
+            <div class="selected-product-card__qty">
+              <label class="field-label-sm">Quantity</label>
+              <div class="qty-control">
+                <button type="button" class="qty-control__btn" (click)="addQty.set(Math.max(1, addQty() - 1))">−</button>
+                <input class="qty-control__input" type="number" min="1"
+                  [value]="addQty()" (input)="addQty.set(+$any($event.target).value || 1)" />
+                <button type="button" class="qty-control__btn" (click)="addQty.set(addQty() + 1)">＋</button>
+              </div>
+              <button type="button" class="btn-add" [disabled]="addQty() < 1" (click)="addToGrid()">
+                ＋ Add
+              </button>
+            </div>
+          </div>
+        }
+      </div>
+    }
+  </section>
+
+  <!-- ── Section 3: Grid ──────────────────────────────────── -->
+  <section class="stock-section stock-section--grid">
+    @if (lines().length > 0) {
+      <div class="grid-summary">
+        <div class="grid-summary__item">
+          <span class="grid-summary__key">Products</span>
+          <span class="grid-summary__val">{{ totalLineCount() }}</span>
+        </div>
+        <div class="grid-summary__item">
+          <span class="grid-summary__key">Total Qty</span>
+          <span class="grid-summary__val">{{ totalQty() }}</span>
+        </div>
+        <div class="grid-summary__item">
+          <span class="grid-summary__key">Base Units</span>
+          <span class="grid-summary__val grid-summary__val--orange">{{ totalBaseUnitsAll() }}</span>
+        </div>
+      </div>
+    }
+    <div class="grid-wrap">
+      @if (lines().length === 0) {
+        <div class="grid-empty">
+          <span class="grid-empty__icon">⬢</span>
+          <p>No lines yet. Search or scan a product above.</p>
+        </div>
+      }
+      <ag-grid-angular
+        class="stock-grid"
+        [theme]="theme"
+        [columnDefs]="colDefs"
+        [rowData]="[]"
+        [rowHeight]="44"
+        [headerHeight]="38"
+        [animateRows]="true"
+        [stopEditingWhenCellsLoseFocus]="true"
+        (gridReady)="onGridReady($event)"
+      />
+    </div>
+  </section>
+
+</div>
