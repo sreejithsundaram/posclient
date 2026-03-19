@@ -1,0 +1,183 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Rajdhani:wght@500;600;700&display=swap');
+
+$bg:      #060b14;
+$surface: #0a0e1a;
+$raised:  #0d1b2e;
+$border:  #1e2d4a;
+$act:     #1565c0;
+$accent:  #64b5f6;
+$green:   #69f0ae;
+$orange:  #ff8a65;
+$text:    #e2e8f0;
+$muted:   #4a6fa5;
+$dim:     #2a3f5f;
+$mono:    'JetBrains Mono', monospace;
+$body:    'Rajdhani', sans-serif;
+
+:host { display: block; height: 100%; }
+
+.login-shell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  background:
+    radial-gradient(ellipse at 20% 50%, rgba(21,101,192,0.08) 0%, transparent 60%),
+    radial-gradient(ellipse at 80% 20%, rgba(100,181,246,0.05) 0%, transparent 50%),
+    #060b14;
+}
+
+.login-card {
+  width: 400px;
+  background: $surface;
+  border: 1px solid $border;
+  border-radius: 12px;
+  padding: 48px 40px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.6), 0 0 0 1px rgba(100,181,246,0.05);
+
+  &__brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: -6px;
+  }
+
+  &__icon {
+    font-size: 28px;
+    color: $act;
+    line-height: 1;
+  }
+
+  &__suite {
+    font-family: $body;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: $accent;
+  }
+
+  &__title {
+    font-family: $body;
+    font-size: 26px;
+    font-weight: 700;
+    color: $text;
+    margin: 0;
+    letter-spacing: 0.5px;
+  }
+
+  &__sub {
+    font-size: 13px;
+    color: $muted;
+    margin: -14px 0 0;
+  }
+}
+
+.login-error {
+  background: rgba(255,138,101,0.08);
+  border: 1px solid rgba(255,138,101,0.3);
+  border-radius: 6px;
+  padding: 10px 14px;
+  font-size: 13px;
+  color: $orange;
+  font-weight: 600;
+}
+
+.field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.field-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: $muted;
+}
+
+.field-wrap {
+  display: flex;
+  align-items: center;
+  background: $raised;
+  border: 1px solid $border;
+  border-radius: 6px;
+  transition: border-color 0.15s;
+  &:focus-within { border-color: $act; box-shadow: 0 0 0 2px rgba(21,101,192,0.15); }
+}
+
+.field-icon {
+  padding: 0 10px 0 12px;
+  font-size: 14px;
+  color: $muted;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.field-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: $text;
+  font-family: $mono;
+  font-size: 13px;
+  padding: 11px 0;
+  &::placeholder { color: $dim; font-family: $body; }
+}
+
+.field-toggle {
+  padding: 0 12px;
+  cursor: pointer;
+  font-size: 14px;
+  color: $muted;
+  user-select: none;
+  &:hover { color: $accent; }
+}
+
+.btn-login {
+  width: 100%;
+  padding: 13px;
+  background: linear-gradient(135deg, #0d2a4a 0%, #1565c0 100%);
+  border: 1px solid rgba(100,181,246,0.3);
+  border-radius: 7px;
+  color: #e3f2fd;
+  font-family: $body;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  transition: all 0.2s;
+  margin-top: 4px;
+  box-shadow: 0 4px 16px rgba(21,101,192,0.3);
+
+  &:hover:not(:disabled) {
+    background: linear-gradient(135deg, #1565c0 0%, #1976d2 100%);
+    box-shadow: 0 6px 24px rgba(21,101,192,0.5);
+  }
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+}
+
+.btn-spin {
+  display: inline-block;
+  width: 14px; height: 14px;
+  border: 2px solid rgba(255,255,255,0.2);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }

@@ -53,6 +53,144 @@
   }
 }
 
+/* ── Bill search ─────────────────────────────────────────── */
+.bill-search {
+  position: relative;
+  flex-shrink: 0;
+
+  &__wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #0a0e1a;
+    border: 1px solid #1e2d4a;
+    border-radius: 6px;
+    padding: 0 10px;
+    height: 34px;
+    width: 210px;
+    transition: border-color 0.15s;
+    &:focus-within { border-color: #1565c0; }
+  }
+
+  &__icon { font-size: 13px; color: #4a6fa5; flex-shrink: 0; }
+
+  &__input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 13px;
+    color: #e2e8f0;
+    &::placeholder { color: #2a3f5f; }
+  }
+
+  &__spinner {
+    width: 11px; height: 11px;
+    border: 2px solid rgba(100,181,246,0.2);
+    border-top-color: #64b5f6;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+    flex-shrink: 0;
+  }
+
+  &__dropdown {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0; right: 0;
+    background: #0d1b2e;
+    border: 1px solid #1565c0;
+    border-radius: 6px;
+    z-index: 300;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+    overflow: hidden;
+  }
+
+  &__result {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    cursor: pointer;
+    border-bottom: 1px solid #1e2d4a;
+    &:last-child { border-bottom: none; }
+    &:hover { background: #0f1f3d; }
+  }
+
+  &__number {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 700;
+    color: #64b5f6;
+    flex: 1;
+  }
+
+  &__customer { font-size: 12px; color: #90caf9; flex: 1; }
+  &__total { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #69f0ae; }
+}
+
+/* ── Bill badge ──────────────────────────────────────────── */
+.bill-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 14px;
+  background: #0d1b2e;
+  border: 1px solid #1565c0;
+  border-radius: 20px;
+
+  &__label {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: #4a6fa5;
+    text-transform: uppercase;
+  }
+
+  &__number {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    font-weight: 700;
+    color: #64b5f6;
+
+    &--loading {
+      color: #4a6fa5;
+      animation: pulse 0.8s ease-in-out infinite;
+    }
+  }
+}
+
+/* ── Customer input ──────────────────────────────────────── */
+.customer-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #0a0e1a;
+  border: 1px solid #1e2d4a;
+  border-radius: 6px;
+  padding: 0 10px;
+  height: 36px;
+  width: 190px;
+  flex-shrink: 0;
+  transition: border-color 0.15s;
+  &:focus-within { border-color: #1565c0; }
+
+  &__icon { font-size: 13px; flex-shrink: 0; }
+}
+
+.customer-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 13px;
+  color: #e2e8f0;
+  min-width: 0;
+  &::placeholder { color: #2a3f5f; }
+  &:disabled { opacity: 0.4; cursor: not-allowed; }
+}
+
 /* ── API health badge ────────────────────────────────────── */
 .api-badge {
   display: flex;
@@ -404,6 +542,28 @@
   }
 }
 
+.completed-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 24px;
+  background: #0d2a1a;
+  border: 1px solid #43a047;
+  border-radius: 6px;
+  color: #69f0ae;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+
+/* ── Search bar locked state ─────────────────────────────── */
+.search-wrap--locked {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
 /* ── Grid area ───────────────────────────────────────────── */
 .grid-area {
   overflow: hidden;
@@ -479,26 +639,33 @@
   letter-spacing: -0.5px;
 }
 
-.btn-clear {
+.summary__actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.btn-new-bill {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 18px;
+  padding: 8px 16px;
   background: transparent;
   border: 1px solid #1e2d4a;
   border-radius: 6px;
-  color: #546e7a;
+  color: #4a6fa5;
   font-family: 'Rajdhani', sans-serif;
   font-size: 14px;
   font-weight: 600;
   letter-spacing: 1px;
   cursor: pointer;
   transition: all 0.2s;
+  white-space: nowrap;
 
   &:hover {
-    border-color: #c62828;
-    color: #ef9a9a;
-    background: #1a0a0a;
+    border-color: #1565c0;
+    color: #64b5f6;
+    background: #0d1b2e;
   }
 }
 
@@ -506,7 +673,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 18px;
+  padding: 8px 16px;
   background: transparent;
   border: 1px solid #1e2d4a;
   border-radius: 6px;
@@ -517,18 +684,14 @@
   letter-spacing: 1px;
   cursor: not-allowed;
   transition: all 0.2s;
+  white-space: nowrap;
 
   &--active {
     border-color: #b71c1c;
     color: #ef9a9a;
     background: #140808;
     cursor: pointer;
-
-    &:hover {
-      background: #3b0f0f;
-      border-color: #c62828;
-      color: #fff;
-    }
+    &:hover { background: #3b0f0f; border-color: #c62828; color: #fff; }
   }
 
   &__count {
@@ -546,4 +709,50 @@
     font-family: 'JetBrains Mono', monospace;
     line-height: 1;
   }
+}
+
+.btn-complete {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 28px;
+  background: linear-gradient(135deg, #1b5e20, #2e7d32);
+  border: 1px solid #43a047;
+  border-radius: 6px;
+  color: #a5d6a7;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 0 12px rgba(67, 160, 71, 0.3);
+  white-space: nowrap;
+
+  &:hover:not(:disabled) {
+    background: linear-gradient(135deg, #2e7d32, #43a047);
+    color: #fff;
+    box-shadow: 0 0 20px rgba(67, 160, 71, 0.5);
+  }
+
+  &:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+}
+
+.btn-spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(165, 214, 167, 0.3);
+  border-top-color: #a5d6a7;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }

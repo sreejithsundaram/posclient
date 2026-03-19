@@ -1,10 +1,38 @@
 <div class="pos-shell">
 
-  <!-- ── Top bar ─────────────────────────────────────── -->
+  <!-- ── Top bar ──────────────────────────────────────────── -->
   <header class="topbar">
     <div class="topbar__brand">
       <span class="topbar__icon">▦</span>
       <span class="topbar__title">POS Terminal</span>
+    </div>
+
+    <!-- Bill search -->
+    <div class="bill-search">
+      <div class="bill-search__wrap">
+        <span class="bill-search__icon">⌕</span>
+        <input
+          class="bill-search__input"
+          type="text"
+          placeholder="Find bill / customer…"
+          [value]="billQuery()"
+          (input)="onBillSearchInput($any($event.target).value)"
+          (blur)="closeBillDropdown()"
+          autocomplete="off"
+        />
+        @if (isBillSearching()) { <span class="bill-search__spinner"></span> }
+      </div>
+      @if (showBillDropdown() && billResults().length > 0) {
+        <div class="bill-search__dropdown">
+          @for (b of billResults(); track b.id) {
+            <div class="bill-search__result" (mousedown)="loadBill(b)">
+              <span class="bill-search__number">{{ b.number }}</span>
+              <span class="bill-search__customer">{{ b.customer }}</span>
+              <span class="bill-search__total">₹{{ b.subtotal.toFixed(2) }}</span>
+            </div>
+          }
+        </div>
+      }
     </div>
 
     <div class="topbar__status">
@@ -17,13 +45,34 @@
       @if (lastError()) {
         <div class="error-pill">⚠ {{ lastError() }}</div>
       }
+      @if (bill()) {
+        <div class="bill-badge">
+          <span class="bill-badge__label">BILL</span>
+          <span class="bill-badge__number">{{ bill()!.number }}</span>
+        </div>
+      }
     </div>
   </header>
 
-  <!-- ── Manual product search ──────────────────────────── -->
+  <!-- ── Search bar ────────────────────────────────────────── -->
   <div class="search-bar">
 
-    <div class="search-wrap">
+    <!-- Customer field -->
+    <div class="customer-wrap">
+      <span class="customer-wrap__icon">👤</span>
+      <input
+        class="customer-input"
+        type="text"
+        placeholder="Customer (mobile / name)…"
+        [value]="customerInput()"
+        (input)="customerInput.set($any($event.target).value)"
+        (blur)="onCustomerBlur()"
+        [disabled]="!bill() || isComplete()"
+        autocomplete="off"
+      />
+    </div>
+
+    <div class="search-wrap" [class.search-wrap--locked]="isComplete()">
       <span class="search-icon">⌕</span>
       <input
         #searchInput
@@ -33,11 +82,10 @@
         [value]="searchQuery()"
         (input)="onSearchInput($any($event.target).value)"
         (blur)="closeDropdown()"
+        [disabled]="isComplete()"
         autocomplete="off"
       />
-      @if (isSearching()) {
-        <span class="search-spinner"></span>
-      }
+      @if (isSearching()) { <span class="search-spinner"></span> }
       @if (selectedProduct()) {
         <span class="selected-chip">
           ✓ {{ selectedProduct()!.name }} — SP ₹{{ selectedProduct()!.sp.toFixed(2) }}
@@ -45,7 +93,6 @@
           <span class="selected-chip__clear" (mousedown)="clearSelection()">✕</span>
         </span>
       }
-
       @if (showDropdown()) {
         <div class="search-dropdown">
           @for (p of searchResults(); track p.id) {
@@ -82,13 +129,13 @@
         [disabled]="!selectedProduct()"
         [class.btn-add--ready]="!!selectedProduct()"
       >
-        + Add to Cart
+        + Add
       </button>
     </div>
 
   </div>
 
-
+  <!-- ── Grid ─────────────────────────────────────────────── -->
   <main class="grid-area">
     <ag-grid-angular
       class="pos-grid"
@@ -98,13 +145,14 @@
       [rowData]="[]"
       [animateRows]="true"
       [suppressMovableColumns]="true"
+      [suppressRowClickSelection]="true"
       [rowHeight]="rowHeight"
-      [rowSelection]="rowSelection"
+      rowSelection="multiple"
       (gridReady)="onGridReady($event)"
     />
   </main>
 
-  <!-- ── Summary footer ─────────────────────────────── -->
+  <!-- ── Summary footer ────────────────────────────────────── -->
   <footer class="summary">
     <div class="summary__stats">
       <div class="stat">
@@ -126,21 +174,32 @@
       <span class="total__amount">₹{{ grandTotal().toFixed(2) }}</span>
     </div>
 
-    <button class="btn-clear" (click)="clearCart()">
-      <span>✕</span> Clear
-    </button>
-
-    <button
-      class="btn-remove-selected"
-      (click)="removeSelected()"
-      [disabled]="selectedCount() === 0"
-      [class.btn-remove-selected--active]="selectedCount() > 0"
-    >
-      <span>⊖</span> Remove Selected
-      @if (selectedCount() > 0) {
-        <span class="btn-remove-selected__count">{{ selectedCount() }}</span>
+    <div class="summary__actions">
+      <button class="btn-new-bill" (click)="newBill()">＋ New</button>
+      @if (isComplete()) {
+        <div class="completed-badge">✓ Completed</div>
+      } @else {
+        <button
+          class="btn-remove-selected"
+          (click)="removeSelected()"
+          [disabled]="selectedCount() === 0"
+          [class.btn-remove-selected--active]="selectedCount() > 0"
+        >
+          ⊖ Remove
+          @if (selectedCount() > 0) {
+            <span class="btn-remove-selected__count">{{ selectedCount() }}</span>
+          }
+        </button>
+        <button
+          class="btn-complete"
+          (click)="completeBill()"
+          [disabled]="!bill() || billSaving() || itemCount() === 0"
+        >
+          @if (billSaving()) { <span class="btn-spinner"></span> }
+          ✓ Complete
+        </button>
       }
-    </button>
+    </div>
   </footer>
 
 </div>

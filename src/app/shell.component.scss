@@ -214,6 +214,74 @@ $transition:          0.22s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 // ── Collapse toggle ───────────────────────────────────────────────────────
+.sidebar__session {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-top: 1px solid $border;
+  margin-top: auto;
+  flex-shrink: 0;
+
+  .shell--collapsed & { justify-content: center; }
+}
+
+.sidebar__user {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+
+  .shell--collapsed & { display: none; }
+
+  &-icon { font-size: 14px; flex-shrink: 0; }
+
+  &-info {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  &-name {
+    font-size: 12px;
+    font-weight: 700;
+    color: $text-primary;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &-roles {
+    font-size: 11px;
+    font-weight: 700;
+    color: $border-active;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+.sidebar__signout {
+  width: 28px;
+  height: 28px;
+  background: transparent;
+  border: 1px solid $border;
+  border-radius: 5px;
+  color: $text-muted;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.15s;
+  &:hover { border-color: #ef5350; color: #ef9a9a; background: rgba(239,83,80,0.08); }
+}
+
 .sidebar__toggle {
   display: flex;
   align-items: center;
@@ -249,7 +317,8 @@ $transition:          0.22s cubic-bezier(0.4, 0, 0.2, 1);
   app-root,
   app-product-editor,
   app-uom-editor,
-  app-stock-controller {
+  app-stock-controller,
+  app-auth {
     display: block;
     width: 100%;
     height: 100%;

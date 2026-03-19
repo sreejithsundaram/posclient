@@ -1,6 +1,6 @@
 import { bootstrapApplication } from '@angular/platform-browser';
 import { provideHttpClient } from '@angular/common/http';
-import { ShellComponent } from './app/shell/shell.component';
+import { ShellComponent } from './app/shell.component';
  
 bootstrapApplication(ShellComponent, {
   providers: [

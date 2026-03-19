@@ -1,0 +1,650 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Rajdhani:wght@500;600;700&display=swap');
+
+$bg-base:    #060b14;
+$bg-surface: #0a0e1a;
+$bg-raised:  #0d1b2e;
+$bg-hover:   #0f1f3d;
+$border:     #1e2d4a;
+$border-act: #1565c0;
+$accent:     #64b5f6;
+$green:      #69f0ae;
+$orange:     #ff8a65;
+$red:        #ef5350;
+$text:       #e2e8f0;
+$muted:      #4a6fa5;
+$dim:        #2a3f5f;
+$mono:       'JetBrains Mono', monospace;
+$body:       'Rajdhani', sans-serif;
+
+:host { display: block; height: 100%; background: $bg-base; color: $text; font-family: $body; }
+
+// ── Shell ─────────────────────────────────────────────────────────────────────
+.admin-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+
+  &--flash-a { animation: save-flash 0.6s ease-out; }
+  &--flash-b { animation: save-flash 0.6s ease-out; }
+}
+
+@keyframes save-flash {
+  0%   { box-shadow: inset 0 0 0 2px rgba(105, 240, 174, 0); }
+  25%  { box-shadow: inset 0 0 0 2px rgba(105, 240, 174, 0.6); }
+  100% { box-shadow: inset 0 0 0 2px rgba(105, 240, 174, 0); }
+}
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
+.admin-toast {
+  position: fixed;
+  bottom: 28px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #0d2a1a;
+  border: 1px solid $green;
+  color: $green;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 10px 20px;
+  border-radius: 6px;
+  z-index: 999;
+  pointer-events: none;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+  animation: fadein 0.15s ease;
+
+  &--err {
+    background: #1a0a0a;
+    border-color: $orange;
+    color: $orange;
+  }
+}
+
+@keyframes fadein {
+  from { opacity: 0; transform: translateX(-50%) translateY(8px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+// ── Header ────────────────────────────────────────────────────────────────────
+.admin-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 28px;
+  height: 60px;
+  background: $bg-surface;
+  border-bottom: 1px solid $border;
+  flex-shrink: 0;
+
+  &__brand { display: flex; align-items: center; gap: 12px; }
+
+  &__icon { font-size: 22px; color: $accent; }
+
+  &__title { font-size: 17px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: $accent; }
+
+  &__sub { font-size: 11px; color: $muted; letter-spacing: 0.5px; }
+
+  &__right { display: flex; align-items: center; gap: 16px; }
+}
+
+.session-info {
+  display: flex; align-items: center; gap: 8px;
+  &__label { font-size: 11px; color: $muted; text-transform: uppercase; letter-spacing: 1px; }
+  &__val { font-family: $mono; font-size: 12px; color: $accent; font-weight: 700; }
+}
+
+.btn-logout {
+  padding: 6px 16px;
+  background: transparent;
+  border: 1px solid $border;
+  border-radius: 5px;
+  color: $muted;
+  font-family: $body;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  &:hover { border-color: $red; color: #ef9a9a; }
+}
+
+// ── Login ─────────────────────────────────────────────────────────────────────
+.login-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: $bg-base;
+}
+
+.login-card {
+  width: 360px;
+  background: $bg-surface;
+  border: 1px solid $border;
+  border-radius: 10px;
+  padding: 40px 36px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+
+  &__icon { font-size: 36px; color: $accent; text-align: center; }
+  &__title { font-size: 22px; font-weight: 700; letter-spacing: 1px; color: $text; text-align: center; }
+  &__sub { font-size: 13px; color: $muted; text-align: center; margin-top: -12px; }
+}
+
+.btn-login {
+  width: 100%;
+  padding: 12px;
+  background: linear-gradient(135deg, #0d2a4a, #1565c0);
+  border: 1px solid #1976d2;
+  border-radius: 6px;
+  color: #e3f2fd;
+  font-family: $body;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  &:hover:not(:disabled) { background: linear-gradient(135deg, #1565c0, #1976d2); }
+  &:disabled { opacity: 0.4; cursor: not-allowed; }
+}
+
+// ── Tabs ──────────────────────────────────────────────────────────────────────
+.admin-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid $border;
+  background: $bg-surface;
+  flex-shrink: 0;
+}
+
+.admin-tab {
+  flex: 1;
+  padding: 12px 8px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-right: 1px solid $border;
+  color: $muted;
+  font-family: $body;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  letter-spacing: 0.5px;
+  transition: all 0.15s;
+  &:last-child { border-right: none; }
+  &:hover { color: $accent; background: $bg-raised; }
+  &--active {
+    color: $accent;
+    border-bottom-color: $border-act;
+    background: $bg-base;
+  }
+}
+
+// ── Body ──────────────────────────────────────────────────────────────────────
+.admin-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px 28px;
+  background: $bg-base;
+}
+
+.tab-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+// ── Panels ────────────────────────────────────────────────────────────────────
+.panel {
+  background: $bg-surface;
+  border: 1px solid $border;
+  border-radius: 8px;
+  overflow: hidden;
+
+  &__title {
+    padding: 12px 18px;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    color: $muted;
+    text-transform: uppercase;
+    border-bottom: 1px solid $border;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  &__count {
+    background: $bg-raised;
+    border: 1px solid $border;
+    border-radius: 10px;
+    padding: 1px 8px;
+    font-size: 11px;
+    font-family: $mono;
+    color: $accent;
+    font-weight: 700;
+  }
+
+  &__row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 18px;
+    flex-wrap: wrap;
+
+    &--col { flex-direction: column; align-items: stretch; gap: 10px; }
+  }
+
+  &--list { padding-bottom: 4px; }
+}
+
+// ── List rows ─────────────────────────────────────────────────────────────────
+.list-header {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 12px;
+  padding: 8px 18px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: $dim;
+  border-bottom: 1px solid $border;
+}
+
+.list-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 18px;
+  border-bottom: 1px solid $border;
+  transition: background 0.1s;
+  &:last-child { border-bottom: none; }
+  &:hover { background: $bg-raised; }
+
+  &--editing {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    background: $bg-hover;
+    padding: 10px 18px;
+    border-bottom: 1px solid $border;
+  }
+
+  &__main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  &__name { font-size: 14px; font-weight: 600; color: $text; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  &__sub  { font-size: 12px; color: $muted; font-family: $mono; }
+
+  &__tags {
+    display: flex; flex-wrap: nowrap; gap: 6px; align-items: center; overflow: hidden;
+    &--wrap { flex-wrap: wrap; }
+  }
+
+  &__actions { display: flex; gap: 6px; align-items: center; justify-content: flex-end; }
+
+  &__edit-fields { flex: 1; display: flex; gap: 8px; }
+}
+
+// ── Edit panel (expands below user row) ───────────────────────────────────────
+.edit-panel {
+  background: $bg-hover;
+  border-bottom: 2px solid $border-act;
+  border-left: 3px solid $border-act;
+  display: flex;
+  gap: 0;
+
+  &__section {
+    flex: 1;
+    padding: 14px 18px;
+    border-right: 1px solid $border;
+    &:last-child { border-right: none; }
+  }
+
+  &__section-title {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: $muted;
+    margin-bottom: 10px;
+  }
+
+  &__loading {
+    font-size: 13px;
+    color: $muted;
+    font-style: italic;
+    padding: 6px 0;
+  }
+
+  &__actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+  }
+}
+
+.list-row--selected {
+  background: rgba(21, 101, 192, 0.06);
+  border-left: 3px solid $border-act;
+}
+
+// ── Editing fields ────────────────────────────────────────────────────────────
+.editing-fields {
+  display: flex;
+  gap: 16px;
+  flex: 1;
+}
+
+.editing-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+
+  &__label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: $muted;
+  }
+}
+
+// ── Tags ──────────────────────────────────────────────────────────────────────
+.role-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  background: rgba(21, 101, 192, 0.15);
+  border: 1px solid rgba(100, 181, 246, 0.3);
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 700;
+  color: $accent;
+  white-space: nowrap;
+
+  &__remove {
+    font-size: 9px;
+    color: $muted;
+    cursor: pointer;
+    &:hover { color: $red; }
+  }
+}
+
+.perm-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  background: rgba(105, 240, 174, 0.08);
+  border: 1px solid rgba(105, 240, 174, 0.2);
+  border-radius: 10px;
+  font-size: 11px;
+  font-family: $mono;
+  color: $green;
+  white-space: nowrap;
+
+  &__remove {
+    font-size: 9px;
+    color: $muted;
+    cursor: pointer;
+    &:hover { color: $red; }
+  }
+}
+
+// ── Permissions grid ──────────────────────────────────────────────────────────
+.perm-grid {
+  padding: 14px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.perm-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  background: $bg-raised;
+  border: 1px solid $border;
+  border-radius: 5px;
+  transition: border-color 0.1s;
+  &:hover { border-color: rgba(105, 240, 174, 0.3); }
+
+  &__dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: $green;
+    flex-shrink: 0;
+  }
+
+  &__name {
+    flex: 1;
+    font-family: $mono;
+    font-size: 13px;
+    color: $text;
+  }
+
+  &__role {
+    font-size: 11px;
+    color: $accent;
+    font-weight: 700;
+    padding: 1px 8px;
+    border: 1px solid rgba(100,181,246,0.2);
+    border-radius: 8px;
+  }
+}
+
+// ── Form fields ───────────────────────────────────────────────────────────────
+.field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: $muted;
+}
+
+.field-input {
+  background: $bg-raised;
+  border: 1px solid $border;
+  border-radius: 5px;
+  color: $text;
+  font-family: $body;
+  font-size: 13px;
+  padding: 8px 12px;
+  outline: none;
+  transition: border-color 0.15s;
+  flex: 1;
+  min-width: 160px;
+
+  &::placeholder { color: $dim; }
+  &:focus { border-color: $border-act; }
+  &:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  &--sm { min-width: 120px; }
+  &--wide { min-width: 340px; }
+}
+
+.field-select {
+  background: $bg-raised;
+  border: 1px solid $border;
+  border-radius: 5px;
+  color: $text;
+  font-family: $body;
+  font-size: 13px;
+  padding: 8px 28px 8px 12px;
+  outline: none;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%234a6fa5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  min-width: 180px;
+  flex: 1;
+  &:focus { border-color: $border-act; }
+}
+
+// ── Buttons ───────────────────────────────────────────────────────────────────
+.btn-primary {
+  padding: 8px 20px;
+  background: #0d2a4a;
+  border: 1px solid $border-act;
+  border-radius: 5px;
+  color: $accent;
+  font-family: $body;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+  &:hover:not(:disabled) { background: #1565c0; color: #fff; }
+  &:disabled { opacity: 0.4; cursor: not-allowed; }
+}
+
+.btn-save {
+  padding: 6px 14px;
+  background: rgba(105,240,174,0.1);
+  border: 1px solid rgba(105,240,174,0.4);
+  border-radius: 5px;
+  color: $green;
+  font-family: $body;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  &:hover { background: rgba(105,240,174,0.2); }
+}
+
+.btn-cancel {
+  padding: 6px 12px;
+  background: transparent;
+  border: 1px solid $border;
+  border-radius: 5px;
+  color: $muted;
+  font-family: $body;
+  font-size: 12px;
+  cursor: pointer;
+  &:hover { border-color: $red; color: #ef9a9a; }
+}
+
+.btn-icon-sm {
+  width: 28px; height: 28px;
+  background: $bg-raised;
+  border: 1px solid $border;
+  border-radius: 4px;
+  color: $muted;
+  font-size: 13px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.15s;
+  &:hover { border-color: $accent; color: $accent; }
+  &--danger:hover { border-color: $red; color: $red; background: rgba(239,83,80,0.08); }
+  &--active { border-color: $accent; color: $accent; background: rgba(100,181,246,0.1); }
+}
+
+.btn-spin {
+  display: inline-block;
+  width: 12px; height: 12px;
+  border: 2px solid rgba(255,255,255,0.2);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+// ── Misc ──────────────────────────────────────────────────────────────────────
+.no-data   { font-size: 11px; color: $dim; font-style: italic; }
+.empty-state { padding: 24px 18px; text-align: center; color: $dim; font-size: 13px; }
+
+// ── Grid layouts ──────────────────────────────────────────────────────────────
+.user-grid { grid-template-columns: 1.2fr 1fr auto; }
+.role-grid { grid-template-columns: 1fr 2fr auto; }
+
+// ── Refresh button ────────────────────────────────────────────────────────────
+.btn-refresh {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: $muted;
+  font-size: 15px;
+  cursor: pointer;
+  padding: 0 4px;
+  &:hover { color: $accent; }
+}
+
+// ── Checkbox group ────────────────────────────────────────────────────────────
+.check-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 18px;
+
+  &--wrap {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+}
+
+.check-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border: 1px solid $border;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.1s;
+  background: $bg-raised;
+
+  &:hover { border-color: $border-act; }
+
+  &--checked {
+    background: rgba(21,101,192,0.12);
+    border-color: rgba(100,181,246,0.4);
+  }
+}
+
+.check-box  { font-size: 16px; color: $accent; user-select: none; }
+.check-label { font-size: 13px; color: $text; font-weight: 600; }
+
+// ── Inline permission editor ──────────────────────────────────────────────────
+.perm-editor {
+  background: $bg-hover;
+  border-top: 1px solid $border;
+  border-bottom: 1px solid $border;
+  padding: 14px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+
+  &__title {
+    font-size: 12px;
+    color: $muted;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    strong { color: $accent; }
+  }
+
+  &__loading {
+    font-size: 13px;
+    color: $muted;
+    padding: 8px 0;
+    font-style: italic;
+  }
+
+  &__actions {
+    display: flex;
+    gap: 10px;
+  }
+}

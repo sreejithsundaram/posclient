@@ -1,0 +1,61 @@
+<div class="login-shell">
+  <div class="login-card">
+
+    <div class="login-card__brand">
+      <span class="login-card__icon">▦</span>
+      <span class="login-card__suite">POS Suite</span>
+    </div>
+
+    <h2 class="login-card__title">Sign In</h2>
+    <p class="login-card__sub">Enter your credentials to access the system</p>
+
+    @if (auth.error()) {
+      <div class="login-error">⚠ {{ auth.error() }}</div>
+    }
+
+    <div class="field-group">
+      <label class="field-label">Email</label>
+      <div class="field-wrap">
+        <span class="field-icon">@</span>
+        <input
+          class="field-input"
+          type="email"
+          placeholder="you@example.com"
+          [value]="email()"
+          (input)="email.set($any($event.target).value)"
+          (keydown.enter)="login()"
+          autocomplete="email"
+        />
+      </div>
+    </div>
+
+    <div class="field-group">
+      <label class="field-label">Password</label>
+      <div class="field-wrap">
+        <span class="field-icon">🔒</span>
+        <input
+          class="field-input"
+          [type]="showPwd() ? 'text' : 'password'"
+          placeholder="••••••••"
+          [value]="password()"
+          (input)="password.set($any($event.target).value)"
+          (keydown.enter)="login()"
+          autocomplete="current-password"
+        />
+        <span class="field-toggle" (click)="showPwd.set(!showPwd())" title="Toggle visibility">
+          {{ showPwd() ? '🙈' : '👁' }}
+        </span>
+      </div>
+    </div>
+
+    <button
+      class="btn-login"
+      [disabled]="auth.busy() || !email() || !password()"
+      (click)="login()"
+    >
+      @if (auth.busy()) { <span class="btn-spin"></span> Signing in… }
+      @else { → Sign In }
+    </button>
+
+  </div>
+</div>

@@ -1,0 +1,245 @@
+<div class="admin-shell"
+  [class.admin-shell--flash-a]="saveFlash() % 2 === 1"
+  [class.admin-shell--flash-b]="saveFlash() % 2 === 0 && saveFlash() > 0">
+
+  @if (toast()) {
+    <div class="admin-toast" [class.admin-toast--err]="toastType() === 'err'">
+      {{ toastType() === 'ok' ? '✓' : '⚠' }} {{ toast() }}
+    </div>
+  }
+
+  <header class="admin-header">
+    <div class="admin-header__brand">
+      <span class="admin-header__icon">⊙</span>
+      <div>
+        <div class="admin-header__title">Admin</div>
+        <div class="admin-header__sub">Users · Roles · Permissions</div>
+      </div>
+    </div>
+  </header>
+
+  <nav class="admin-tabs">
+    <button class="admin-tab" [class.admin-tab--active]="activeTab() === 'users'"       (click)="activeTab.set('users')">       👤 Users       </button>
+    <button class="admin-tab" [class.admin-tab--active]="activeTab() === 'roles'"       (click)="activeTab.set('roles')">       🔑 Roles       </button>
+    <button class="admin-tab" [class.admin-tab--active]="activeTab() === 'permissions'" (click)="activeTab.set('permissions')"> 🛡 Permissions </button>
+  </nav>
+
+  <div class="admin-body">
+
+    <!-- ════════════════════════════════ USERS ════════════════════════════════ -->
+    @if (activeTab() === 'users') {
+      <div class="tab-pane">
+
+        <!-- Create user -->
+        <div class="panel">
+          <div class="panel__title">＋ Create User</div>
+          <div class="panel__row">
+            <input class="field-input" type="email" placeholder="Email *"
+              [value]="newEmail()" (input)="newEmail.set($any($event.target).value)" />
+            <input class="field-input" type="password" placeholder="Password *"
+              [value]="newPassword()" (input)="newPassword.set($any($event.target).value)" />
+            <input class="field-input" placeholder="Full Name"
+              [value]="newFullName()" (input)="newFullName.set($any($event.target).value)" />
+            <button class="btn-primary" [disabled]="userBusy() || !newEmail() || !newPassword()" (click)="createUser()">Create</button>
+          </div>
+        </div>
+
+        <!-- Users list -->
+        <div class="panel panel--list">
+          <div class="panel__title">
+            Users <span class="panel__count">{{ users().length }}</span>
+            <button class="btn-refresh" (click)="loadUsers()" title="Refresh">⟳</button>
+          </div>
+          <div class="list-header user-grid">
+            <span>Name</span><span>Email</span><span>Actions</span>
+          </div>
+
+          @for (u of users(); track u.id) {
+            <!-- Normal row -->
+            <div class="list-row user-grid" [class.list-row--selected]="editingUser()?.id === u.id">
+              <div class="list-row__main">
+                <span class="list-row__name">{{ u.fullName || u.userName }}</span>
+                <span class="list-row__sub">{{ u.userName }}</span>
+              </div>
+              <div class="list-row__main">
+                <span class="list-row__sub">{{ u.email }}</span>
+              </div>
+              <div class="list-row__actions">
+                <button class="btn-icon-sm" [class.btn-icon-sm--active]="editingUser()?.id === u.id"
+                  title="Edit" (click)="startEditUser(u)">✎</button>
+                <button class="btn-icon-sm btn-icon-sm--danger" title="Delete" (click)="deleteUser(u)">🗑</button>
+              </div>
+            </div>
+
+            <!-- Expandable edit panel -->
+            @if (editingUser()?.id === u.id) {
+              <div class="edit-panel">
+
+                <div class="edit-panel__section">
+                  <div class="edit-panel__section-title">Edit Details</div>
+                  <div class="editing-fields">
+                    <div class="editing-field">
+                      <span class="editing-field__label">Username</span>
+                      <input class="field-input field-input--sm" placeholder="Username"
+                        [value]="editUserName()" (input)="editUserName.set($any($event.target).value)" />
+                    </div>
+                    <div class="editing-field">
+                      <span class="editing-field__label">Email</span>
+                      <input class="field-input field-input--sm" type="email" placeholder="Email"
+                        [value]="editEmail()" (input)="editEmail.set($any($event.target).value)" />
+                    </div>
+                  </div>
+                  <div class="edit-panel__actions">
+                    <button class="btn-save" (click)="saveEditUser()">✓ Save Details</button>
+                  </div>
+                </div>
+
+                <div class="edit-panel__section">
+                  <div class="edit-panel__section-title">Assign Roles</div>
+                  @if (editRolesLoading()) {
+                    <div class="edit-panel__loading">Loading roles…</div>
+                  } @else {
+                    <div class="check-group check-group--wrap">
+                      @for (r of editUserRoles(); track r.name) {
+                        <label class="check-item" [class.check-item--checked]="r.assigned">
+                          <span class="check-box" (click)="toggleEditUserRole(r.name)">
+                            {{ r.assigned ? '☑' : '☐' }}
+                          </span>
+                          <span class="check-label">{{ r.name }}</span>
+                        </label>
+                      }
+                      @if (!editUserRoles().length) {
+                        <span class="no-data">No roles available</span>
+                      }
+                    </div>
+                    <div class="edit-panel__actions">
+                      <button class="btn-save" (click)="saveUserRoles()">✓ Save Roles</button>
+                      <button class="btn-cancel" (click)="cancelEditUser()">Close</button>
+                    </div>
+                  }
+                </div>
+
+              </div>
+            }
+          }
+          @if (!users().length) { <div class="empty-state">No users found — click ⟳ to refresh</div> }
+        </div>
+
+      </div>
+    }
+
+    <!-- ════════════════════════════════ ROLES ════════════════════════════════ -->
+    @if (activeTab() === 'roles') {
+      <div class="tab-pane">
+
+        <div class="panel">
+          <div class="panel__title">＋ Create Role</div>
+          <div class="panel__row">
+            <input class="field-input" placeholder="Role name (e.g. Manager)"
+              [value]="newRoleName()" (input)="newRoleName.set($any($event.target).value)"
+              (keydown.enter)="createRole()" />
+            <button class="btn-primary" [disabled]="roleBusy() || !newRoleName().trim()" (click)="createRole()">Create</button>
+          </div>
+        </div>
+
+        <div class="panel panel--list">
+          <div class="panel__title">
+            Roles <span class="panel__count">{{ roles().length }}</span>
+            <button class="btn-refresh" (click)="loadRoles()" title="Refresh">⟳</button>
+          </div>
+          <div class="list-header role-grid"><span>Role</span><span>Permissions</span><span>Actions</span></div>
+
+          @for (r of roles(); track r.name) {
+            <div class="list-row role-grid" [class.list-row--selected]="editPermRole() === r.name">
+              <div class="list-row__main">
+                <span class="list-row__name">{{ r.name }}</span>
+                <span class="list-row__sub">{{ r.permissions.length }} permissions</span>
+              </div>
+              <div class="list-row__tags list-row__tags--wrap">
+                @for (p of r.permissions; track p) { <span class="perm-tag">{{ p }}</span> }
+                @if (!r.permissions.length) { <span class="no-data">No permissions</span> }
+              </div>
+              <div class="list-row__actions">
+                <button class="btn-icon-sm" [class.btn-icon-sm--active]="editPermRole() === r.name"
+                  title="Edit permissions" (click)="selectRoleForPerms(r.name)">✎</button>
+                <button class="btn-icon-sm btn-icon-sm--danger" title="Delete role"
+                  (click)="editPermRole.set(''); deleteRole(r.name)">🗑</button>
+              </div>
+            </div>
+
+            @if (editPermRole() === r.name) {
+              <div class="perm-editor">
+                <div class="perm-editor__title">Permissions for <strong>{{ r.name }}</strong></div>
+                @if (editPermLoading()) {
+                  <div class="perm-editor__loading">Loading…</div>
+                } @else {
+                  <div class="check-group check-group--wrap">
+                    @for (p of editPermList(); track p.name) {
+                      <label class="check-item" [class.check-item--checked]="p.assigned">
+                        <span class="check-box" (click)="togglePermForRole(p.name)">
+                          {{ p.assigned ? '☑' : '☐' }}
+                        </span>
+                        <span class="check-label">{{ p.name }}</span>
+                      </label>
+                    }
+                    @if (!editPermList().length) {
+                      <span class="no-data">No permissions available — create some in the Permissions tab</span>
+                    }
+                  </div>
+                  <div class="perm-editor__actions">
+                    <button class="btn-save" (click)="saveRolePermissions()">✓ Save Permissions</button>
+                    <button class="btn-cancel" (click)="editPermRole.set('')">Close</button>
+                  </div>
+                }
+              </div>
+            }
+          }
+          @if (!roles().length) { <div class="empty-state">No roles found</div> }
+        </div>
+
+      </div>
+    }
+
+    <!-- ════════════════════════════════ PERMISSIONS ════════════════════════════════ -->
+    @if (activeTab() === 'permissions') {
+      <div class="tab-pane">
+
+        <div class="panel">
+          <div class="panel__title">＋ Create Permission</div>
+          <div class="panel__row">
+            <input class="field-input" placeholder="e.g. Bill.Create"
+              [value]="newPermName()" (input)="newPermName.set($any($event.target).value)"
+              (keydown.enter)="createPermission()" />
+            <button class="btn-primary" [disabled]="permBusy() || !newPermName().trim()" (click)="createPermission()">Create</button>
+          </div>
+        </div>
+
+        <div class="panel panel--list">
+          <div class="panel__title">
+            Permissions <span class="panel__count">{{ filteredPerms().length }}</span>
+            <button class="btn-refresh" (click)="loadPermissions()" title="Refresh">⟳</button>
+          </div>
+          <div class="panel__row" style="padding-bottom:0">
+            <select class="field-select" [value]="permFilterRole()" (change)="permFilterRole.set($any($event.target).value)">
+              <option value="">All permissions</option>
+              @for (r of roles(); track r.name) { <option [value]="r.name">{{ r.name }}</option> }
+            </select>
+          </div>
+          <div class="perm-grid">
+            @for (p of filteredPerms(); track p) {
+              <div class="perm-item">
+                <span class="perm-item__dot"></span>
+                <span class="perm-item__name">{{ p }}</span>
+                @if (permFilterRole()) { <span class="perm-item__role">{{ permFilterRole() }}</span> }
+              </div>
+            }
+            @if (!filteredPerms().length) { <div class="empty-state">No permissions found</div> }
+          </div>
+        </div>
+
+      </div>
+    }
+
+  </div>
+
+</div>
