@@ -107,9 +107,12 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   private applyBill(b: BillView) {
+    // Preserve images from existing rows — server doesn't return them
+    const imageMap = new Map(this.rowData.map(r => [r.id, r.image]));
+
     this.bill.set({ ...b, billlines: [] });
     this.customerInput.set(b.customer ?? '');
-    this.slCounter = 0;
+
     const items: CartItem[] = (b.billlines ?? []).map((l, i) => ({
       lineId:  l.id,
       billId:  l.billid,
@@ -121,9 +124,12 @@ export class AppComponent implements OnInit, OnDestroy {
       sp:      l.sp,
       savings: l.savings,
       total:   l.total,
+      image:   imageMap.get(l.productid),
     }));
-    this.slCounter = items.length;
-    this.rowData = items;
+
+    this.slCounter  = items.length;
+    this.rowData    = items;
+    this.selectedCount.set(0);
     this.gridApi?.setGridOption('rowData', items);
     this.recalcSummary();
   }
@@ -285,7 +291,7 @@ export class AppComponent implements OnInit, OnDestroy {
     }).pipe(catchError(() => of(null))).subscribe();
   }
 
-  completeBill() {
+   completeBill() {
     const b = this.bill();
     if (!b?.id) return;
     this.billSaving.set(true);
@@ -301,22 +307,13 @@ export class AppComponent implements OnInit, OnDestroy {
   onQtyEdited(event: any) {
     const row: CartItem = event.data;
     const qty = Math.max(1, Number(event.newValue) || 1);
-    row.qty     = qty;
-    row.total   = row.sp * qty;
-    row.savings = (row.mrp - row.sp) * qty;
-    this.gridApi.applyTransaction({ update: [row] });
-    this.recalcSummary();
-    if (row.lineId) {
-      this.http.put<BilllineView>(`/api/billline/${row.lineId}/${qty}`, {})
-        .pipe(catchError(() => of(null)))
-        .subscribe(result => {
-          if (!result) return;
-          row.savings = result.savings;
-          row.total   = result.total;
-          this.gridApi.applyTransaction({ update: [row] });
-          this.recalcSummary();
-        });
-    }
+    if (!row.lineId) return;
+    this.http.put<BillView>(`/api/billline/${row.lineId}/${qty}`, {})
+      .pipe(catchError(() => of(null)))
+      .subscribe(result => {
+        if (!result) return;
+        this.applyBill(result);
+      });
   }
 
   // ── Remove selected — batch DELETE ────────────────────────
@@ -325,68 +322,21 @@ export class AppComponent implements OnInit, OnDestroy {
     if (!selected.length) return;
     const billId = this.bill()?.id;
     const ids    = selected.map(s => s.lineId).filter(Boolean) as number[];
-
-    // Optimistic remove
-    this.rowData = this.rowData.filter(r => !selected.find(s => s.id === r.id));
-    this.gridApi.applyTransaction({ remove: selected });
-    this.renumberLines();
-    this.recalcSummary();
-    this.selectedCount.set(0);
-
-    if (billId && ids.length) {
-      this.http.delete<BillView>('/api/billline', { body: { billid: billId, ids } })
-        .pipe(catchError(() => of(null)))
-        .subscribe(result => {
-          if (!result) return;
-          if (result.id === null) {
-            // Last line removed — server deleted the draft bill, reset to new
-            this.newBill();
-          } else {
-            this.bill.set({ ...result, billlines: [] });
-          }
-        });
-    }
+    if (!billId || !ids.length) return;
+    this.http.delete<BillView>('/api/billline', { body: { billid: billId, ids } })
+      .pipe(catchError(() => of(null)))
+      .subscribe(result => {
+        if (!result) return;
+        if (result.id === null) {
+          this.newBill();
+        } else {
+          this.applyBill(result);
+        }
+      });
   }
 
-  // ── Core: upsert item ─────────────────────────────────────
+  // ── Core: add / upsert item ───────────────────────────────
   private upsertItem(product: ProductResult, qtyToAdd = 1) {
-    const existing = this.rowData.find(r => r.id === product.id);
-
-    if (existing) {
-      existing.qty    += qtyToAdd;
-      existing.total   = existing.sp * existing.qty;
-      existing.savings = (existing.mrp - existing.sp) * existing.qty;
-      if (product.image) existing.image = product.image;
-      this.gridApi.applyTransaction({ update: [existing] });
-      this.recalcSummary();
-      this.lastError.set('');
-      if (existing.lineId) {
-        this.http.put<BilllineView>(`/api/billline/${existing.lineId}/${existing.qty}`, {})
-          .pipe(catchError(() => of(null)))
-          .subscribe(result => {
-            if (!result) return;
-            existing.savings = result.savings;
-            existing.total   = result.total;
-            this.gridApi.applyTransaction({ update: [existing] });
-            this.recalcSummary();
-          });
-      }
-      return;
-    }
-
-    // New line — optimistic add, slNo is UI-only
-    this.slCounter++;
-    const newItem: CartItem = {
-      slNo: this.slCounter, id: product.id, item: product.name,
-      qty: qtyToAdd, mrp: product.mrp, sp: product.sp,
-      total: product.sp * qtyToAdd, savings: (product.mrp - product.sp) * qtyToAdd,
-      image: product.image,
-    };
-    this.rowData.push(newItem);
-    this.gridApi.applyTransaction({ add: [newItem] });
-    this.recalcSummary();
-    this.lastError.set('');
-
     this.http.post<BillView>('/api/billline', {
       billid:    this.bill()?.id ?? null,
       productid: product.id,
@@ -396,29 +346,8 @@ export class AppComponent implements OnInit, OnDestroy {
     }).pipe(catchError(() => of(null)))
       .subscribe(result => {
         if (!result) return;
-        // Find the line for this product in the response
-        const line = result.billlines?.find(l => l.productid === product.id);
-        if (line) {
-          newItem.lineId  = line.id;
-          newItem.billId  = line.billid;
-          newItem.savings = line.savings;
-          newItem.total   = line.total;
-          this.gridApi.applyTransaction({ update: [newItem] });
-          this.recalcSummary();
-        }
-        // Update bill header every time (sets number on first add)
-        if (result.id !== null) {
-          this.bill.set({ id: result.id, number: result.number, customer: result.customer, state: result.state, subtotal: result.subtotal, savings: result.savings, billlines: [] });
-        }
+        if (result.id !== null) this.applyBill(result);
       });
-  }
-
-  private renumberLines() {
-    this.rowData.forEach((r, i) => { r.slNo = i + 1; });
-    this.slCounter = this.rowData.length;
-    if (this.rowData.length > 0) {
-      this.gridApi.applyTransaction({ update: [...this.rowData] });
-    }
   }
 
   private recalcSummary() {
