@@ -47,9 +47,9 @@ export interface BilllineView {
 }
 
 export interface BillView {
-  id:        number;
-  number:    string;
-  customer:  string;
+  id:        number | null;
+  number:    string | null;
+  customer:  string | null;
   state:     number;
   subtotal:  number;
   savings:   number;
@@ -98,9 +98,9 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   loadBill(b: BillView) {
-    this.billQuery.set(b.number);
+    this.billQuery.set(b.number ?? '');
     this.showBillDropdown.set(false);
-    // Fetch full bill with lines
+    if (!b.id) return;
     this.http.get<BillView>(`/api/bill/${b.id}`)
       .pipe(catchError(() => of(null)))
       .subscribe(full => { if (full) this.applyBill(full); });
@@ -154,6 +154,7 @@ export class AppComponent implements OnInit, OnDestroy {
   itemCount     = signal(0);
   grandTotal    = computed(() => this.subTotal());
   selectedCount = signal(0);
+  isComplete    = computed(() => (this.bill()?.state ?? 0) >= 2);
 
   // ── Grid ──────────────────────────────────────────────────
   readonly rowHeight = 56;
@@ -278,17 +279,15 @@ export class AppComponent implements OnInit, OnDestroy {
 
   onCustomerBlur() {
     const b = this.bill();
-    if (!b) return;
+    if (!b?.id) return;
     this.http.put(`/api/bill`, {
       id: b.id, customer: this.customerInput(), state: b.state,
     }).pipe(catchError(() => of(null))).subscribe();
   }
 
-  isComplete = computed(() => (this.bill()?.state ?? 0) >= 2);
-
   completeBill() {
     const b = this.bill();
-    if (!b) return;
+    if (!b?.id) return;
     this.billSaving.set(true);
     this.http.post<BillView>(`/api/bill/complete/${b.id}`, {})
       .pipe(catchError(() => of(null)))
@@ -325,17 +324,26 @@ export class AppComponent implements OnInit, OnDestroy {
     const selected = this.gridApi.getSelectedRows();
     if (!selected.length) return;
     const billId = this.bill()?.id;
-    const ids = selected.map(s => s.lineId).filter(Boolean) as number[];
+    const ids    = selected.map(s => s.lineId).filter(Boolean) as number[];
+
+    // Optimistic remove
     this.rowData = this.rowData.filter(r => !selected.find(s => s.id === r.id));
     this.gridApi.applyTransaction({ remove: selected });
     this.renumberLines();
     this.recalcSummary();
     this.selectedCount.set(0);
+
     if (billId && ids.length) {
       this.http.delete<BillView>('/api/billline', { body: { billid: billId, ids } })
         .pipe(catchError(() => of(null)))
         .subscribe(result => {
-          if (result) this.bill.set({ ...result, billlines: [] });
+          if (!result) return;
+          if (result.id === null) {
+            // Last line removed — server deleted the draft bill, reset to new
+            this.newBill();
+          } else {
+            this.bill.set({ ...result, billlines: [] });
+          }
         });
     }
   }
@@ -399,7 +407,9 @@ export class AppComponent implements OnInit, OnDestroy {
           this.recalcSummary();
         }
         // Update bill header every time (sets number on first add)
-        this.bill.set({ id: result.id, number: result.number, customer: result.customer, state: result.state, subtotal: result.subtotal, savings: result.savings, billlines: [] });
+        if (result.id !== null) {
+          this.bill.set({ id: result.id, number: result.number, customer: result.customer, state: result.state, subtotal: result.subtotal, savings: result.savings, billlines: [] });
+        }
       });
   }
 

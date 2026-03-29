@@ -45,7 +45,7 @@
       @if (lastError()) {
         <div class="error-pill">⚠ {{ lastError() }}</div>
       }
-      @if (bill()) {
+      @if (bill()?.id) {
         <div class="bill-badge">
           <span class="bill-badge__label">BILL</span>
           <span class="bill-badge__number">{{ bill()!.number }}</span>
