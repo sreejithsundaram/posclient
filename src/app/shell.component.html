@@ -40,6 +40,11 @@
         <span class="nav-item__label">Products</span>
         <span class="nav-item__pip"></span>
       </a>
+      <a class="nav-item nav-item--sub" [class.nav-item--active]="activeRoute() === 'product-groups'" (click)="navigate('product-groups')" title="Product Groups">
+        <span class="nav-item__icon">⬡</span>
+        <span class="nav-item__label">Groups</span>
+        <span class="nav-item__pip"></span>
+      </a>
       <a class="nav-item" [class.nav-item--active]="activeRoute() === 'uom'" (click)="navigate('uom')" title="Units of Measure">
         <span class="nav-item__icon">⊛</span>
         <span class="nav-item__label">Units of Measure</span>
@@ -80,6 +85,7 @@
   <main class="shell__content">
     <app-root              [isActive]="activeRoute() === 'terminal'"  [class.route--hidden]="activeRoute() !== 'terminal'"  (scannerStatusChange)="onScannerStatus($event)"></app-root>
     <app-product-editor    [isActive]="activeRoute() === 'products'"  [class.route--hidden]="activeRoute() !== 'products'"  (scannerStatusChange)="onScannerStatus($event)"></app-product-editor>
+    <app-product-groups    [isActive]="activeRoute() === 'product-groups'" [class.route--hidden]="activeRoute() !== 'product-groups'"></app-product-groups>
     <app-uom-editor                                                    [class.route--hidden]="activeRoute() !== 'uom'"></app-uom-editor>
     <app-stock-controller  [isActive]="activeRoute() === 'stock'"     [class.route--hidden]="activeRoute() !== 'stock'"     (scannerStatusChange)="onScannerStatus($event)"></app-stock-controller>
     <app-auth                                                          [class.route--hidden]="activeRoute() !== 'admin'"></app-auth>

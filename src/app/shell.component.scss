@@ -211,6 +211,15 @@ $transition:          0.22s cubic-bezier(0.4, 0, 0.2, 1);
       pointer-events: none;
     }
   }
+
+  &--sub {
+    padding-left: 38px;
+    
+    .nav-item__icon {
+      font-size: 14px;
+      width: 14px;
+    }
+  }
 }
 
 // ── Collapse toggle ───────────────────────────────────────────────────────
@@ -316,15 +325,15 @@ $transition:          0.22s cubic-bezier(0.4, 0, 0.2, 1);
 
   app-root,
   app-product-editor,
+  app-product-groups,
   app-uom-editor,
   app-stock-controller,
   app-auth {
     display: block;
+    position: absolute;
+    inset: 0;
     width: 100%;
     height: 100%;
-    position: absolute;
-    top: 0;
-    left: 0;
   }
 }
 

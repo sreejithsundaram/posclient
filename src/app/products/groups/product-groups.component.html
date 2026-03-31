@@ -1,0 +1,167 @@
+<div class="groups-shell">
+  <!-- ── Left pane: List of Groups ──────────────────────── -->
+  <div class="groups-list-pane">
+    <div class="groups-list-header">
+      <div class="groups-list-title">Product Groups</div>
+      <button class="btn-create" (click)="setMode('create')">＋ New</button>
+    </div>
+    
+    <div class="groups-list">
+      @if (groups().length === 0) {
+        <div class="groups-list-empty">No groups found</div>
+      }
+      @for (g of groups(); track g.id) {
+        <div 
+          class="group-item" 
+          [class.group-item--active]="mode() === 'edit' && loadedId() === g.id"
+          (click)="loadGroup(g)"
+        >
+          <div class="group-item__name">{{ g.name }}</div>
+          <div class="group-item__count">{{ g.lines?.length || 0 }} product(s)</div>
+        </div>
+      }
+    </div>
+
+    <!-- Groups Pager -->
+    <div class="pane-pager">
+      <button class="pager-btn" [disabled]="!groupsPager().hasPrevious" (click)="changeGroupsPage(-1)">‹</button>
+      <span class="pager-info">Page {{ groupsPager().page }} of {{ groupsPager().totalPages }}</span>
+      <button class="pager-btn" [disabled]="!groupsPager().hasNext" (click)="changeGroupsPage(1)">›</button>
+    </div>
+  </div>
+
+  <!-- ── Right pane: Editor ─────────────────────────────── -->
+  <div class="groups-editor-pane">
+    
+    <header class="editor-header">
+      <div class="editor-header__brand">
+        <span class="editor-header__icon">⬡</span>
+        <div>
+          <div class="editor-header__title">{{ mode() === 'create' ? 'Create Group' : 'Edit Group' }}</div>
+          <div class="editor-header__sub">{{ mode() === 'create' ? 'Define a new product group' : 'Modify existing group' }}</div>
+        </div>
+      </div>
+    </header>
+
+    <div class="editor-body">
+      <form class="editor-form" (ngSubmit)="onSubmit()">
+        
+        <!-- Group Name -->
+        <div class="field-group">
+          <label class="field-label" for="f-name">Group Name <span class="field-required">*</span></label>
+          <input 
+            id="f-name"
+            class="field-input"
+            [class.field-input--error]="errors().name"
+            type="text"
+            placeholder="e.g. Summer Collection"
+            [value]="form().name"
+            (input)="patchName($any($event.target).value)"
+            maxlength="100"
+          />
+          @if (errors().name) {
+            <span class="field-error">{{ errors().name }}</span>
+          }
+        </div>
+
+        <hr class="editor-divider" />
+
+        <!-- Add Products -->
+        <div class="field-group base-product-group">
+          <label class="field-label">Add Products</label>
+          <div class="base-product-search">
+            <div class="base-product-search__input-wrap">
+              <span class="base-product-search__icon">⌕</span>
+              <input
+                class="field-input base-product-search__input"
+                type="text"
+                placeholder="Search products to add…"
+                [value]="searchQuery()"
+                (input)="onSearchInput($any($event.target).value)"
+                autocomplete="off"
+              />
+              @if (isSearching() || isLoadingAll()) {
+                <span class="base-product-search__spinner"></span>
+              }
+            </div>
+
+            @if (pickerProducts.length > 0) {
+              <div class="base-product-search__dropdown" style="position: static; max-height: 380px; margin-top: 10px;">
+                @for (item of pickerProducts; track item.id) {
+                  <div class="base-product-result" (mousedown)="addLine(item)">
+                    <div class="base-product-result__info">
+                      <span class="base-product-result__name">{{ item.name }}</span>
+                      <span class="base-product-result__meta">
+                        <span class="base-product-result__code">{{ item.code }}</span>
+                      </span>
+                    </div>
+                  </div>
+                }
+
+                <!-- Product Pager (only shown when not searching) -->
+                @if (searchQuery().length < 2) {
+                  <div class="pane-pager pane-pager--inline">
+                    <button type="button" class="pager-btn" [disabled]="!productsPager().hasPrevious" (click)="changeProductsPage(-1)">‹</button>
+                    <span class="pager-info">Page {{ productsPager().page }} of {{ productsPager().totalPages }}</span>
+                    <button type="button" class="pager-btn" [disabled]="!productsPager().hasNext" (click)="changeProductsPage(1)">›</button>
+                  </div>
+                }
+              </div>
+            }
+            @if (pickerProducts.length === 0 && !isSearching() && !isLoadingAll()) {
+              <div class="base-product-search__empty">No products found</div>
+            }
+          </div>
+        </div>
+
+        <!-- Lines -->
+        <div class="lines-list">
+          <label class="field-label">Products in this group ({{ form().lines?.length || 0 }})</label>
+          @if (!form().lines || (form().lines?.length === 0)) {
+            <div class="lines-empty">No products added yet.</div>
+          }
+          @for (line of (form().lines || []); track line.productId) {
+            <div class="line-item">
+              <div class="line-item__info">
+                <span class="line-item__name">{{ line.name || 'Product ID: ' + line.productId }}</span>
+                <span class="line-item__code">{{ line.code || '' }}</span>
+              </div>
+              <button type="button" class="btn-remove-line" (click)="removeLine(line.productId)" title="Remove product">✕</button>
+            </div>
+          }
+        </div>
+
+        <!-- Actions -->
+        <div class="form-actions">
+          @if (saveStatus() === 'success') {
+            <div class="status-pill status-pill--success">✓ Saved</div>
+          }
+          @if (saveStatus() === 'error') {
+            <div class="status-pill status-pill--error">⚠ {{ saveError() }}</div>
+          }
+          
+          <div class="actions-spacer"></div>
+
+          <button type="button" class="btn-secondary" (click)="clear()">Clear</button>
+          
+          @if (mode() === 'edit') {
+            <button type="button" class="btn-danger" (click)="onDelete()">Delete</button>
+          }
+          <button 
+            type="submit" 
+            class="btn-primary" 
+            [class.btn-primary--saving]="saveStatus() === 'saving'"
+            [disabled]="saveStatus() === 'saving'"
+          >
+            @if (saveStatus() === 'saving') {
+              <span class="btn-spinner"></span> Saving…
+            } @else {
+              {{ mode() === 'edit' ? 'Update Group' : 'Create Group' }}
+            }
+          </button>
+        </div>
+
+      </form>
+    </div>
+  </div>
+</div>

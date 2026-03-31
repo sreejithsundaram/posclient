@@ -9,13 +9,14 @@ import { StockControllerComponent } from './stock/stock-controller.component';
 import { AuthComponent } from './auth/auth.component';
 import { LoginComponent } from './auth/login.component';
 import { AuthService } from './auth/auth.service';
+import { ProductGroupsComponent } from './products/groups/product-groups.component';
 
-export type AppRoute = 'terminal' | 'products' | 'uom' | 'stock' | 'admin';
+export type AppRoute = 'terminal' | 'products' | 'uom' | 'stock' | 'admin' | 'product-groups';
 
 @Component({
   selector:  'app-shell',
   standalone: true,
-  imports:   [AppComponent, ProductEditorComponent, UomEditorComponent, StockControllerComponent, AuthComponent, LoginComponent],
+  imports:   [AppComponent, ProductEditorComponent, UomEditorComponent, StockControllerComponent, AuthComponent, LoginComponent, ProductGroupsComponent],
   templateUrl: './shell.component.html',
   styleUrl:    './shell.component.scss',
 })
