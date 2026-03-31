@@ -169,9 +169,36 @@
       </div>
     </div>
 
+    <!-- ── Payment ── -->
+    <div class="payment-controls">
+      <div class="payment-method">
+        <label class="payment-label">METHOD</label>
+        <select
+          class="payment-select"
+          [ngModel]="paymentMethod()"
+          (ngModelChange)="paymentMethod.set($event)"
+          [disabled]="isComplete()"
+        >
+          <option value="Cash">Cash</option>
+          <option value="Card">Card</option>
+          <option value="UPI">UPI</option>
+        </select>
+      </div>
+
+      <div class="payment-amount">
+        <label class="payment-label">AMOUNT</label>
+        <input
+          class="payment-input"
+          type="text"
+          [value]="'₹' + (paymentAmount().toFixed(2))"
+          readonly
+        />
+      </div>
+    </div>
+
     <div class="summary__total">
       <span class="total__label">TOTAL</span>
-      <span class="total__amount">₹{{ grandTotal().toFixed(2) }}</span>
+      <span class="total__amount">₹{{ (bill()?.roundedtotal || grandTotal()).toFixed(2) }}</span>
     </div>
 
     <div class="summary__actions">

@@ -639,6 +639,64 @@
   letter-spacing: -0.5px;
 }
 
+/* ── Payment Section ── */
+.payment-controls {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  margin-left: 40px;
+}
+
+.payment-method, .payment-amount {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.payment-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: #4a6fa5;
+  text-transform: uppercase;
+}
+
+.payment-select {
+  height: 32px;
+  min-width: 90px;
+  background: #0a0e1a;
+  border: 1px solid #1e2d4a;
+  border-radius: 4px;
+  color: #e2e8f0;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 0 10px;
+  outline: none;
+  transition: all 0.2s;
+  cursor: pointer;
+
+  &:hover:not(:disabled) { border-color: #1565c0; background: #0f1f3d; }
+  &:focus { border-color: #1565c0; box-shadow: 0 0 0 2px rgba(21, 101, 192, 0.2); }
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
+}
+
+.payment-input {
+  height: 32px;
+  width: 110px;
+  background: #0d1b2e;
+  border: 1px solid #1e2d4a;
+  border-radius: 4px;
+  color: #64b5f6;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 15px;
+  font-weight: 700;
+  padding: 0 12px;
+  text-align: right;
+  outline: none;
+  cursor: default;
+}
+
 .summary__actions {
   display: flex;
   align-items: center;

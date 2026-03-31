@@ -47,13 +47,14 @@ export interface BilllineView {
 }
 
 export interface BillView {
-  id:        number | null;
-  number:    string | null;
-  customer:  string | null;
-  state:     number;
-  subtotal:  number;
-  savings:   number;
-  billlines: BilllineView[];
+  id:           number | null;
+  number:       string | null;
+  customer:     string | null;
+  state:        number;
+  subtotal:     number;
+  savings:      number;
+  roundedtotal: number;
+  billlines:    BilllineView[];
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -78,6 +79,8 @@ export class AppComponent implements OnInit, OnDestroy {
   bill          = signal<BillView | null>(null);
   billSaving    = signal(false);
   customerInput = signal('');
+  paymentMethod = signal<'Cash' | 'Card' | 'UPI'>('Cash');
+  paymentAmount = signal(0);
   private slCounter = 0;
 
   // ── Bill search ───────────────────────────────────────────
@@ -112,6 +115,7 @@ export class AppComponent implements OnInit, OnDestroy {
 
     this.bill.set({ ...b, billlines: [] });
     this.customerInput.set(b.customer ?? '');
+    this.paymentAmount.set(b.roundedtotal ?? 0);
 
     const items: CartItem[] = (b.billlines ?? []).map((l, i) => ({
       lineId:  l.id,
@@ -280,6 +284,8 @@ export class AppComponent implements OnInit, OnDestroy {
     this.itemCount.set(0);
     this.selectedCount.set(0);
     this.lastBarcode.set('');
+    this.paymentMethod.set('Cash');
+    this.paymentAmount.set(0);
     setTimeout(() => this.searchInputRef?.nativeElement.focus(), 50);
   }
 
