@@ -86,7 +86,7 @@
             </div>
 
             @if (pickerProducts.length > 0) {
-              <div class="base-product-search__dropdown" style="position: static; max-height: 380px; margin-top: 10px;">
+              <div class="base-product-search__dropdown" style="position: static; max-height: 260px; margin-top: 10px;">
                 @for (item of pickerProducts; track item.id) {
                   <div class="base-product-result" (mousedown)="addLine(item)">
                     <div class="base-product-result__info">

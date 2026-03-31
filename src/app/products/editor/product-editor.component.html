@@ -28,55 +28,102 @@
     </div>
   </header>
 
-  <!-- ── Search panel (edit mode) ───────────────────────── -->
+  <!-- ── Search/Browse panel (edit mode) ───────────────── -->
   @if (mode() === 'edit') {
     <div class="search-panel">
-      <div class="search-panel__inner">
-        <span class="search-panel__icon">⌕</span>
-        <input
-          #searchInput
-          class="search-panel__input"
-          type="text"
-          placeholder="Search by name, code or barcode…"
-          [value]="searchQuery()"
-          (input)="onSearchInput($any($event.target).value)"
-          (blur)="closeSearchDropdown()"
-          autocomplete="off"
-        />
-        @if (isSearching()) {
-          <span class="search-panel__spinner"></span>
-        }
+      <div class="search-panel__tabs">
+        <button
+          class="tab-btn"
+          [class.tab-btn--active]="browseMode() === 'search'"
+          (click)="setBrowseMode('search')"
+        >
+          Search
+        </button>
+        <button
+          class="tab-btn"
+          [class.tab-btn--active]="browseMode() === 'list'"
+          (click)="setBrowseMode('list')"
+        >
+          Browse All
+        </button>
+      </div>
 
-        @if (showSearchDropdown() && searchResults().length > 0) {
-          <div class="search-panel__dropdown">
-            @for (item of searchResults(); track item.id) {
-              <div class="search-result" (mousedown)="loadProduct(item)">
-                <div class="search-result__thumb">
+      @if (browseMode() === 'search') {
+        <div class="search-panel__inner">
+          <span class="search-panel__icon">⌕</span>
+          <input
+            #searchInput
+            class="search-panel__input"
+            type="text"
+            placeholder="Search by name, code or barcode…"
+            [value]="searchQuery()"
+            (input)="onSearchInput($any($event.target).value)"
+            (blur)="closeSearchDropdown()"
+            autocomplete="off"
+          />
+          @if (isSearching()) {
+            <span class="search-panel__spinner"></span>
+          }
+
+          @if (showSearchDropdown() && searchResults().length > 0) {
+            <div class="search-panel__dropdown">
+              @for (item of searchResults(); track item.id) {
+                <div class="search-result" (mousedown)="loadProduct(item)">
+                  <div class="search-result__thumb">
+                    @if (item.thumb) {
+                      <img [src]="'data:image/jpeg;base64,' + item.thumb" alt="" />
+                    } @else {
+                      <span>⬡</span>
+                    }
+                  </div>
+                  <div class="search-result__info">
+                    <span class="search-result__name">{{ item.name }}</span>
+                    <span class="search-result__meta">
+                      <span class="search-result__code">{{ item.code }}</span>
+                      @if (item.barcode) {
+                        <span class="search-result__barcode">▌{{ item.barcode }}</span>
+                      }
+                    </span>
+                  </div>
+                  <div class="search-result__price">₹{{ item.sp?.toFixed(2) }}</div>
+                </div>
+              }
+            </div>
+          }
+
+          @if (showSearchDropdown() && searchResults().length === 0 && searchQuery().length >= 3 && !isSearching()) {
+            <div class="search-panel__empty">No products found</div>
+          }
+        </div>
+      } @else {
+        <!-- Browse All List -->
+        <div class="browse-list">
+          <div class="browse-list__grid">
+            @for (item of allProducts(); track item.id) {
+              <div class="browse-item" (click)="loadProduct(item)" [class.browse-item--active]="item.id === loadedId()">
+                <div class="browse-item__thumb">
                   @if (item.thumb) {
                     <img [src]="'data:image/jpeg;base64,' + item.thumb" alt="" />
                   } @else {
                     <span>⬡</span>
                   }
                 </div>
-                <div class="search-result__info">
-                  <span class="search-result__name">{{ item.name }}</span>
-                  <span class="search-result__meta">
-                    <span class="search-result__code">{{ item.code }}</span>
-                    @if (item.barcode) {
-                      <span class="search-result__barcode">▌{{ item.barcode }}</span>
-                    }
-                  </span>
+                <div class="browse-item__info">
+                  <div class="browse-item__name">{{ item.name }}</div>
+                  <div class="browse-item__meta">{{ item.code }} | {{ item.barcode || 'No barcode' }}</div>
                 </div>
-                <div class="search-result__price">₹{{ item.sp?.toFixed(2) }}</div>
+                <div class="browse-item__price">₹{{ item.sp?.toFixed(2) }}</div>
               </div>
             }
           </div>
-        }
 
-        @if (showSearchDropdown() && searchResults().length === 0 && searchQuery().length >= 3 && !isSearching()) {
-          <div class="search-panel__empty">No products found</div>
-        }
-      </div>
+          <div class="browse-pager">
+            <button class="pager-btn" [disabled]="!allProductsPager().hasPrevious || isLoadingAll()" (click)="changeAllProductsPage(-1)">‹</button>
+            <span class="pager-info">Page {{ allProductsPager().page }} / {{ allProductsPager().totalPages }}</span>
+            <button class="pager-btn" [disabled]="!allProductsPager().hasNext || isLoadingAll()" (click)="changeAllProductsPage(1)">›</button>
+          </div>
+        </div>
+      }
     </div>
   }
 
@@ -227,6 +274,24 @@
 
           <!-- RIGHT: Fields -->
           <div class="form-col form-col--main">
+
+            <!-- Barcode Conflict Prompt -->
+            @if (showConflictPrompt()) {
+              <div class="conflict-banner">
+                <div class="conflict-banner__content">
+                  <span class="conflict-banner__icon">⚠</span>
+                  <div class="conflict-banner__text">
+                    <strong>Barcode Conflict:</strong> This barcode is already assigned to 
+                    <span class="conflict-banner__prod">"{{ conflictProduct()?.name }}"</span>.
+                    Switch to editing that product?
+                  </div>
+                </div>
+                <div class="conflict-banner__actions">
+                  <button type="button" class="btn-conflict btn-conflict--yes" (click)="confirmLoadConflict()">Yes, Load It</button>
+                  <button type="button" class="btn-conflict btn-conflict--no" (click)="cancelConflict()">No, Ignore</button>
+                </div>
+              </div>
+            }
 
             <div class="field-row">
               <!-- Code -->

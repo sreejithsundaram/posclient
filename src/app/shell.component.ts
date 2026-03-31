@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, signal } from '@angular/core';
+import { Component, OnInit, OnDestroy, signal, computed } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { catchError } from 'rxjs/operators';
 import { of } from 'rxjs';
@@ -10,13 +10,15 @@ import { AuthComponent } from './auth/auth.component';
 import { LoginComponent } from './auth/login.component';
 import { AuthService } from './auth/auth.service';
 import { ProductGroupsComponent } from './products/groups/product-groups.component';
+import { InventoryComponent } from './stock/inventory/inventory.component';
+import { ScannerService } from './scanner.service';
 
-export type AppRoute = 'terminal' | 'products' | 'uom' | 'stock' | 'admin' | 'product-groups';
+export type AppRoute = 'terminal' | 'products' | 'uom' | 'stock' | 'admin' | 'product-groups' | 'inventory';
 
 @Component({
   selector:  'app-shell',
   standalone: true,
-  imports:   [AppComponent, ProductEditorComponent, UomEditorComponent, StockControllerComponent, AuthComponent, LoginComponent, ProductGroupsComponent],
+  imports:   [AppComponent, ProductEditorComponent, UomEditorComponent, StockControllerComponent, AuthComponent, LoginComponent, ProductGroupsComponent, InventoryComponent],
   templateUrl: './shell.component.html',
   styleUrl:    './shell.component.scss',
 })
@@ -35,15 +37,12 @@ export class ShellComponent implements OnInit, OnDestroy {
   }
 
   // ── Global scanner status ─────────────────────────────────
-  scannerStatus = signal<'connecting' | 'connected' | 'disconnected'>('disconnected');
-  onScannerStatus(status: 'connecting' | 'connected' | 'disconnected') {
-    this.scannerStatus.set(status);
-  }
+  scannerStatus = computed(() => this.scanner.status());
 
   toggleSidebar() { this.collapsed.set(!this.collapsed()); }
   navigate(route: AppRoute) { this.activeRoute.set(route); }
 
-  constructor(private http: HttpClient, readonly auth: AuthService) {}
+  constructor(private http: HttpClient, readonly auth: AuthService, private scanner: ScannerService) {}
 
   ngOnInit() {
     this.checkHealth();

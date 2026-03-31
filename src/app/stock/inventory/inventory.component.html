@@ -1,0 +1,66 @@
+<div class="inventory-view">
+
+  <!-- ── Header ────────────────────────────────────────────── -->
+  <header class="view-header">
+    <div class="view-header__title">
+      <span class="view-header__icon">📋</span>
+      <h1>Inventory View</h1>
+      <span class="badge badge--count" *ngIf="pager().totalRecords">{{ pager().totalRecords }} Products</span>
+    </div>
+
+    <div class="view-header__actions">
+      <!-- Search -->
+      <div class="search-container">
+        <span class="search-icon">🔍</span>
+        <input
+          type="text"
+          placeholder="Search products..."
+          class="search-input"
+          [ngModel]="searchQuery()"
+          (ngModelChange)="onSearchInput($event)"
+        />
+        <button class="clear-btn" *ngIf="searchQuery()" (click)="clearSearch()" title="Clear search">✕</button>
+      </div>
+
+      <!-- Refresh -->
+      <button class="btn btn--icon" (click)="loadInventory()" [disabled]="isLoading()" title="Refresh">
+        <span class="btn__icon" [class.rotating]="isLoading()">↻</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- ── Grid ──────────────────────────────────────────────── -->
+  <div class="grid-wrapper">
+    <ag-grid-angular
+      class="ag-theme-quartz"
+      style="width: 100%; height: 100%;"
+      [theme]="theme"
+      [columnDefs]="colDefs"
+      [pagination]="false"
+      (gridReady)="onGridReady($event)"
+    ></ag-grid-angular>
+
+    <div class="loading-overlay" *ngIf="isLoading()">
+      <div class="loader"></div>
+      <span>Fetching inventory...</span>
+    </div>
+  </div>
+
+  <!-- ── Footer ────────────────────────────────────────────── -->
+  <footer class="view-footer">
+    <div class="pagination">
+      <button class="btn btn--page" [disabled]="!pager().hasPrevious || isLoading()" (click)="changePage(-1)">
+        ‹ Previous
+      </button>
+      <span class="page-info">Page <strong>{{ pager().page }}</strong> of <strong>{{ pager().totalPages }}</strong></span>
+      <button class="btn btn--page" [disabled]="!pager().hasNext || isLoading()" (click)="changePage(1)">
+        Next ›
+      </button>
+    </div>
+
+    <div class="stats" *ngIf="!isLoading()">
+      <span>Showing {{ inventory().length }} records</span>
+    </div>
+  </footer>
+
+</div>

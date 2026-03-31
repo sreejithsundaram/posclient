@@ -55,6 +55,11 @@
         <span class="nav-item__label">Stock</span>
         <span class="nav-item__pip"></span>
       </a>
+      <a class="nav-item nav-item--sub" [class.nav-item--active]="activeRoute() === 'inventory'" (click)="navigate('inventory')" title="Inventory View">
+        <span class="nav-item__icon">📋</span>
+        <span class="nav-item__label">Inventory</span>
+        <span class="nav-item__pip"></span>
+      </a>
       <a class="nav-item" [class.nav-item--active]="activeRoute() === 'admin'" (click)="navigate('admin')" title="Admin">
         <span class="nav-item__icon">⊙</span>
         <span class="nav-item__label">Admin</span>
@@ -83,11 +88,12 @@
 
   <!-- ── Main content ──────────────────────────────────────── -->
   <main class="shell__content">
-    <app-root              [isActive]="activeRoute() === 'terminal'"  [class.route--hidden]="activeRoute() !== 'terminal'"  (scannerStatusChange)="onScannerStatus($event)"></app-root>
-    <app-product-editor    [isActive]="activeRoute() === 'products'"  [class.route--hidden]="activeRoute() !== 'products'"  (scannerStatusChange)="onScannerStatus($event)"></app-product-editor>
+    <app-root              [isActive]="activeRoute() === 'terminal'"  [class.route--hidden]="activeRoute() !== 'terminal'"></app-root>
+    <app-product-editor    [isActive]="activeRoute() === 'products'"  [class.route--hidden]="activeRoute() !== 'products'"></app-product-editor>
     <app-product-groups    [isActive]="activeRoute() === 'product-groups'" [class.route--hidden]="activeRoute() !== 'product-groups'"></app-product-groups>
     <app-uom-editor                                                    [class.route--hidden]="activeRoute() !== 'uom'"></app-uom-editor>
-    <app-stock-controller  [isActive]="activeRoute() === 'stock'"     [class.route--hidden]="activeRoute() !== 'stock'"     (scannerStatusChange)="onScannerStatus($event)"></app-stock-controller>
+    <app-stock-controller  [isActive]="activeRoute() === 'stock'"     [class.route--hidden]="activeRoute() !== 'stock'"></app-stock-controller>
+    <app-inventory         [isActive]="activeRoute() === 'inventory'" [class.route--hidden]="activeRoute() !== 'inventory'"></app-inventory>
     <app-auth                                                          [class.route--hidden]="activeRoute() !== 'admin'"></app-auth>
   </main>
 

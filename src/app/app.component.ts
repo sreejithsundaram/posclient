@@ -6,6 +6,7 @@ import { debounceTime, distinctUntilChanged, switchMap, catchError } from 'rxjs/
 import { AgGridAngular } from 'ag-grid-angular';
 import { ColDef, GridApi, GridReadyEvent, themeQuartz, ICellRendererParams } from 'ag-grid-community';
 import { AllCommunityModule, ModuleRegistry } from 'ag-grid-community';
+import { ScannerService } from './scanner.service';
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
@@ -72,8 +73,6 @@ export class AppComponent implements OnInit, OnDestroy {
   readonly scannerStatusChange = output<'connecting' | 'connected' | 'disconnected'>();
 
   private gridApi!: GridApi<CartItem>;
-  private ws:             WebSocket | null = null;
-  private reconnectTimer: any = null;
 
   // ── Bill state ────────────────────────────────────────────
   bill          = signal<BillView | null>(null);
@@ -148,14 +147,8 @@ export class AppComponent implements OnInit, OnDestroy {
   selectedProduct = signal<ProductResult | null>(null);
 
   // ── WS ────────────────────────────────────────────────────
-  wsStatus    = signal<'connecting' | 'connected' | 'disconnected'>('disconnected');
   lastBarcode = signal('');
   lastError   = signal('');
-
-  private setWsStatus(s: 'connecting' | 'connected' | 'disconnected') {
-    this.wsStatus.set(s);
-    this.scannerStatusChange.emit(s);
-  }
 
   // ── Cart ──────────────────────────────────────────────────
   private rowData: CartItem[] = [];
@@ -365,32 +358,6 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   // ── WebSocket ─────────────────────────────────────────────
-  private connect() {
-    this.setWsStatus('connecting');
-    this.ws = new WebSocket('ws://localhost:5050/ws');
-    this.ws.onopen  = () => this.zone.run(() => {
-      this.setWsStatus('connected');
-      this.lastError.set('');
-      if (this.reconnectTimer) { clearTimeout(this.reconnectTimer); this.reconnectTimer = null; }
-    });
-    this.ws.onmessage = (event) => {
-      try {
-        const msg = JSON.parse(event.data);
-        if (msg.type === 'barcode' && msg.value) {
-          this.zone.run(() => {
-            if (!this.isActive() || document.visibilityState !== 'visible') return;
-            this.lastBarcode.set(msg.value);
-            this.onBarcodeScanned(msg.value);
-          });
-        }
-      } catch {}
-    };
-    this.ws.onclose = () => this.zone.run(() => {
-      this.setWsStatus('disconnected');
-      this.reconnectTimer = setTimeout(() => this.connect(), 2000);
-    });
-    this.ws.onerror = () => this.ws?.close();
-  }
 
   private showError(msg: string) {
     this.lastError.set(msg);
@@ -406,10 +373,16 @@ export class AppComponent implements OnInit, OnDestroy {
       });
   }
 
-  constructor(private http: HttpClient, private zone: NgZone) {}
+  constructor(private http: HttpClient, private zone: NgZone, private scanner: ScannerService) {}
 
   ngOnInit() {
-    this.connect();
+    this.scanner.barcode$.subscribe(barcode => {
+      if (!this.isActive() || document.visibilityState !== 'visible') return;
+      this.zone.run(() => {
+        this.lastBarcode.set(barcode);
+        this.onBarcodeScanned(barcode);
+      });
+    });
 
     this.searchSubject.pipe(
       debounceTime(200), distinctUntilChanged(),
@@ -441,8 +414,6 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy() {
-    if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
-    this.ws?.close();
     this.searchSubject.complete();
     this.billSearchSubject.complete();
   }

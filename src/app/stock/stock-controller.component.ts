@@ -6,6 +6,7 @@ import { HttpClient } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { Subject, of } from 'rxjs';
 import { debounceTime, distinctUntilChanged, switchMap, catchError } from 'rxjs/operators';
+import { ScannerService } from '../scanner.service';
 import { AgGridAngular } from 'ag-grid-angular';
 import {
   ColDef, GridApi, GridReadyEvent, themeQuartz,
@@ -78,14 +79,7 @@ export const STATUS_COLORS: Record<number, string> = {
 })
 export class StockControllerComponent implements OnInit, OnDestroy {
   readonly isActive = input<boolean>(true);
-  readonly scannerStatusChange = output<'connecting' | 'connected' | 'disconnected'>();
-
-  scannerStatus = signal<'connecting' | 'connected' | 'disconnected'>('disconnected');
-
-  private setScanner(s: 'connecting' | 'connected' | 'disconnected') {
-    this.scannerStatus.set(s);
-    this.scannerStatusChange.emit(s);
-  }
+  scannerStatus = computed(() => this.scanner.status());
 
   readonly STATUS_LABELS = STATUS_LABELS;
   readonly STATUS_COLORS = STATUS_COLORS;
@@ -243,7 +237,6 @@ export class StockControllerComponent implements OnInit, OnDestroy {
   selectedProduct = signal<ProductSearchResult | null>(null);
   addQty          = signal<number>(1);
 
-  private ws:               WebSocket | null = null;
   private wsReconnectTimer: any = null;
 
   onProductInput(value: string) {
@@ -405,46 +398,11 @@ export class StockControllerComponent implements OnInit, OnDestroy {
     this.lines().reduce((s, l) => s + (l.baseQty ? l.qty * l.baseQty : l.qty), 0)
   );
 
-  // ── WebSocket scanner ─────────────────────────────────────
-  private connectScanner() {
-    this.setScanner('connecting');
-    this.ws = new WebSocket('ws://localhost:5050/ws');
-    this.ws.onopen  = () => this.zone.run(() => this.setScanner('connected'));
-    this.ws.onclose = () => this.zone.run(() => {
-      this.setScanner('disconnected');
-      this.wsReconnectTimer = setTimeout(() => this.connectScanner(), 2000);
-    });
-    this.ws.onerror = () => this.ws?.close();
-    this.ws.onmessage = (event) => {
-      try {
-        const msg = JSON.parse(event.data);
-        if (msg.type === 'barcode' && msg.value) {
-          this.zone.run(() => {
-            if (!this.isActive() || document.visibilityState !== 'visible') return;
-            const val = msg.value as string;
-            this.barcodeInput.set(val);
-            this.http.get<any>(`/api/products/${encodeURIComponent(val)}?pos=false`)
-              .pipe(catchError(() => of(null)))
-              .subscribe(p => {
-                if (!p) { this.showToast('⚠ Product not found: ' + val); return; }
-                this.barcodeScanned.set(true);
-                if (this.barcodeFlashTimer) clearTimeout(this.barcodeFlashTimer);
-                this.barcodeFlashTimer = setTimeout(() => this.barcodeScanned.set(false), 2000);
-                this.scan({ productid: p.id });
-              });
-          });
-        }
-      } catch {}
-    };
-  }
-
   private disconnectScanner() {
     if (this.wsReconnectTimer) clearTimeout(this.wsReconnectTimer);
-    this.ws?.close();
-    this.ws = null;
   }
 
-  constructor(private http: HttpClient, private zone: NgZone) {}
+  constructor(private http: HttpClient, private zone: NgZone, private scanner: ScannerService) {}
 
   ngOnInit() {
     // Product search
@@ -477,7 +435,21 @@ export class StockControllerComponent implements OnInit, OnDestroy {
       this.showStockDropdown.set((results as any[]).length > 0);
     });
 
-    this.connectScanner();
+    this.scanner.barcode$.subscribe(barcode => {
+      if (!this.isActive() || document.visibilityState !== 'visible') return;
+      this.zone.run(() => {
+        this.barcodeInput.set(barcode);
+        this.http.get<any>(`/api/products/${encodeURIComponent(barcode)}?pos=false`)
+          .pipe(catchError(() => of(null)))
+          .subscribe(p => {
+            if (!p) { this.showToast('⚠ Product not found: ' + barcode); return; }
+            this.barcodeScanned.set(true);
+            if (this.barcodeFlashTimer) clearTimeout(this.barcodeFlashTimer);
+            this.barcodeFlashTimer = setTimeout(() => this.barcodeScanned.set(false), 2000);
+            this.scan({ productid: p.id });
+          });
+      });
+    });
   }
 
   ngOnDestroy() {

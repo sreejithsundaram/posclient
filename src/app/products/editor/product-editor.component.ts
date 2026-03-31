@@ -14,6 +14,7 @@ import { HttpClient } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { Subject, of } from 'rxjs';
 import { debounceTime, distinctUntilChanged, switchMap, catchError } from 'rxjs/operators';
+import { ScannerService } from '../../scanner.service';
 
 // ── Domain types ─────────────────────────────────────────────────────────────
 
@@ -100,17 +101,18 @@ export class ProductEditorComponent implements OnInit, OnDestroy {
   @ViewChild('barcodeInput1') barcodeInput1Ref!: ElementRef<HTMLInputElement>;
   @ViewChild('barcodeInput2') barcodeInput2Ref!: ElementRef<HTMLInputElement>;
 
-  private ws: WebSocket | null = null;
-  private wsReconnectTimer: any = null;
   private barcodeBuffer = '';
   private barcodeTimer: any = null;
 
-  readonly scannerStatusChange = output<'connecting' | 'connected' | 'disconnected'>();
-  scannerStatus = signal<'connecting' | 'connected' | 'disconnected'>('disconnected');
+  scannerStatus = computed(() => this.scanner.status());
 
-  private setScanner(s: 'connecting' | 'connected' | 'disconnected') {
-    this.scannerStatus.set(s);
-    this.scannerStatusChange.emit(s);
+  // ── Browse Mode ─────────────────────────────────────────
+  browseMode = signal<'search' | 'list'>('search');
+  setBrowseMode(m: 'search' | 'list') {
+    this.browseMode.set(m);
+    if (m === 'list' && this.allProducts().length === 0) {
+      this.loadAllProducts(1);
+    }
   }
 
   // ── Mode ────────────────────────────────────────────────
@@ -159,6 +161,26 @@ export class ProductEditorComponent implements OnInit, OnDestroy {
     this.showBaseProductDropdown.set(false);
   }
 
+  // ── Conflict/Prompt state ───────────────────────────────
+  conflictProduct    = signal<ProductPayload | null>(null);
+  showConflictPrompt = signal(false);
+
+  confirmLoadConflict() {
+    if (this.conflictProduct()) {
+      this.loadProduct(this.conflictProduct() as any);
+      this.showConflictPrompt.set(false);
+      this.conflictProduct.set(null);
+    }
+  }
+
+  cancelConflict() {
+    this.showConflictPrompt.set(false);
+    this.conflictProduct.set(null);
+    // User opted NOT to switch — clear barcode fields for current product as requested
+    this.patch('barcode', '');
+    this.barcodeConfirm.set('');
+  }
+
   // ── Barcode confirm + scan state ─────────────────────────
   barcodeConfirm = signal('');
   barcodeScanned = signal(false);
@@ -183,31 +205,36 @@ export class ProductEditorComponent implements OnInit, OnDestroy {
       .pipe(catchError(() => of(null)))
       .subscribe((product) => {
         console.log('[Scanner] Product lookup result:', product);
-        if (product) {
-          console.log('[Scanner] Loading existing product into edit mode');
-          this.mode.set('edit');
-          this.loadedId.set(product.id!);
-          this.searchQuery.set(product.name);
-          // API returns 'image', schema stores as 'thumb' — normalise
-          const { image: _img, ...rest } = product as any;
-          const normalised = {
-            ...rest,
-            thumb:   _img ?? product.thumb   ?? '',
-            picture: product.picture ?? '',
-          };
-          this.form.set({ ...emptyForm(), ...normalised });
-          this.barcodeConfirm.set(normalised.barcode ?? '');
-          this.thumbPreview.set(normalised.thumb ? `data:image/jpeg;base64,${normalised.thumb}` : null);
-          this.picturePreview.set(normalised.picture ? `data:image/jpeg;base64,${normalised.picture}` : null);
-          this.autoThumb.set(!normalised.thumb && !!normalised.picture);
-          this.errors.set({});
-          this.saveStatus.set('idle');
+
+        if (this.loadedId()) {
+          // --- CASE: EDIT MODE ---
+          if (product) {
+            if (product.id === this.loadedId()) {
+              // Current product — just verify
+              this.barcodeConfirm.set(barcode);
+            } else {
+              // CONFLICT: Belongs to DIFFERENT product
+              this.conflictProduct.set(product);
+              this.showConflictPrompt.set(true);
+            }
+          } else {
+            // New barcode for current product
+            this.patch('barcode', barcode);
+            this.barcodeConfirm.set(barcode);
+          }
         } else {
-          console.log('[Scanner] Product not found, switching to create mode');
-          this.mode.set('create');
-          this.loadedId.set(null);
-          this.patch('barcode', barcode);
-          this.barcodeConfirm.set(barcode);
+          // --- CASE: CREATE MODE (Existing behavior) ---
+          if (product) {
+            console.log('[Scanner] Loading existing product into edit mode');
+            this.mode.set('edit');
+            this.loadedId.set(product.id!);
+            this.searchQuery.set(product.name);
+            this.applyProductToForm(product);
+          } else {
+            console.log('[Scanner] Product not found, staying in create mode');
+            this.patch('barcode', barcode);
+            this.barcodeConfirm.set(barcode);
+          }
         }
 
         this.barcodeScanned.set(true);
@@ -216,47 +243,24 @@ export class ProductEditorComponent implements OnInit, OnDestroy {
       });
   }
 
+  private applyProductToForm(product: ProductPayload) {
+    // API returns 'image', schema stores as 'thumb' — normalise
+    const { image: _img, ...rest } = product as any;
+    const normalised = {
+      ...rest,
+      thumb:   _img ?? product.thumb   ?? '',
+      picture: product.picture ?? '',
+    };
+    this.form.set({ ...emptyForm(), ...normalised });
+    this.barcodeConfirm.set(normalised.barcode ?? '');
+    this.thumbPreview.set(normalised.thumb ? `data:image/jpeg;base64,${normalised.thumb}` : null);
+    this.picturePreview.set(normalised.picture ? `data:image/jpeg;base64,${normalised.picture}` : null);
+    this.autoThumb.set(!normalised.thumb && !!normalised.picture);
+    this.errors.set({});
+    this.saveStatus.set('idle');
+  }
+
   // ── WebSocket barcode scanner ─────────────────────────────
-
-  private connectScanner() {
-    const url = 'ws://localhost:5050/ws';
-    this.setScanner('connecting');
-    this.ws = new WebSocket(url);
-
-    this.ws.onopen = () => {
-      this.zone.run(() => this.setScanner('connected'));
-    };
-
-    this.ws.onmessage = (event) => {
-      try {
-        const msg = JSON.parse(event.data);
-        if (msg.type === 'barcode' && msg.value) {
-          this.zone.run(() => {
-            if (!this.isActive() || document.visibilityState !== 'visible') return;
-            this.applyScannedBarcode(msg.value);
-          });
-        }
-      } catch {}
-    };
-
-    this.ws.onclose = () => {
-      this.zone.run(() => {
-        this.setScanner('disconnected');
-        this.wsReconnectTimer = setTimeout(() => this.connectScanner(), 2000);
-      });
-    };
-
-    this.ws.onerror = (event) => {
-      console.error('[Scanner] WebSocket error:', event);
-      this.ws?.close();
-    };
-  }
-
-  private disconnectScanner() {
-    if (this.wsReconnectTimer) clearTimeout(this.wsReconnectTimer);
-    this.ws?.close();
-    this.ws = null;
-  }
 
   // ── Image handling ───────────────────────────────────────
   thumbPreview   = signal<string | null>(null);
@@ -436,13 +440,43 @@ export class ProductEditorComponent implements OnInit, OnDestroy {
     this.loadedId.set(null);
     this.form.set(emptyForm());
     this.thumbPreview.set(null);
+    this.showConflictPrompt.set(false);
+  }
+
+  // ── Browse All List ───────────────────────────────────────
+  allProducts   = signal<ProductSearchResult[]>([]);
+  allProductsPager = signal({ page: 1, totalPages: 1, hasNext: false, hasPrevious: false, totalRecords: 0 });
+  isLoadingAll  = signal(false);
+
+  loadAllProducts(page = 1) {
+    this.isLoadingAll.set(true);
+    this.http.get<any>(`/api/Products/all?page=${page}&size=10&pos=false`)
+      .pipe(catchError(() => of({ items: [], page, totalPages: 1, totalRecords: 0 })))
+      .subscribe(res => {
+        this.allProducts.set(res.items || []);
+        this.allProductsPager.set({
+          page: res.page,
+          totalPages: res.totalPages,
+          hasNext: res.hasNext,
+          hasPrevious: res.hasPrevious,
+          totalRecords: res.totalRecords
+        });
+        this.isLoadingAll.set(false);
+      });
+  }
+
+  changeAllProductsPage(delta: number) {
+    const next = this.allProductsPager().page + delta;
+    if (next >= 1 && next <= this.allProductsPager().totalPages) {
+      this.loadAllProducts(next);
+    }
   }
 
   loadProduct(item: ProductSearchResult) {
     this.searchQuery.set(item.name);
     this.showSearchDropdown.set(false);
     this.http
-      .get<ProductPayload>(`/api/Products?id=${item.id}`)
+      .get<ProductPayload>(`/api/Products?id=${item.id}&pos=false`)
       .pipe(catchError((err) => {
         console.error('[Editor] Failed to load product:', err.status, err.message);
         return of(null);
@@ -469,7 +503,7 @@ export class ProductEditorComponent implements OnInit, OnDestroy {
         // Restore base product display if present
         if (normalised.baseproductid) {
           this.http
-            .get<ProductPayload>(`/api/Products?id=${normalised.baseproductid}`)
+            .get<ProductPayload>(`/api/Products?id=${normalised.baseproductid}&pos=false`)
             .pipe(catchError(() => of(null)))
             .subscribe(bp => {
               if (bp) {
@@ -560,11 +594,15 @@ export class ProductEditorComponent implements OnInit, OnDestroy {
   }
 
   // ── Lifecycle ─────────────────────────────────────────────
-  constructor(private http: HttpClient, private zone: NgZone) {}
+  constructor(private http: HttpClient, private zone: NgZone, private scanner: ScannerService) {}
 
   ngOnInit() {
     this.loadUoms();
-    this.connectScanner();
+
+    this.scanner.barcode$.subscribe(barcode => {
+      if (!this.isActive() || document.visibilityState !== 'visible') return;
+      this.zone.run(() => this.applyScannedBarcode(barcode));
+    });
 
     this.searchSubject.pipe(
       debounceTime(250),
@@ -613,7 +651,6 @@ export class ProductEditorComponent implements OnInit, OnDestroy {
   ngOnDestroy() {
     this.searchSubject.complete();
     this.baseProductSubject.complete();
-    this.disconnectScanner();
     if (this.barcodeFlashTimer) clearTimeout(this.barcodeFlashTimer);
   }
 }
