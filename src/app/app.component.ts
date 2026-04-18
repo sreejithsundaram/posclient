@@ -7,56 +7,10 @@ import { AgGridAngular } from 'ag-grid-angular';
 import { ColDef, GridApi, GridReadyEvent, themeQuartz, ICellRendererParams } from 'ag-grid-community';
 import { AllCommunityModule, ModuleRegistry } from 'ag-grid-community';
 import { ScannerService } from './scanner.service';
+import { PrintService } from './print.service';
+import { CartItem, ProductResult, BillView, BilllineView } from './models';
 
 ModuleRegistry.registerModules([AllCommunityModule]);
-
-// ── Domain types ──────────────────────────────────────────────────────────────
-
-export interface CartItem {
-  lineId?:  number;
-  billId?:  number;
-  slNo:     number;   // UI only
-  id:       number;   // productid
-  item:     string;
-  qty:      number;
-  mrp:      number;
-  sp:       number;
-  savings:  number;
-  total:    number;
-  image?:   string;
-}
-
-export interface ProductResult {
-  id:     number;
-  name:   string;
-  mrp:    number;
-  sp:     number;
-  stock:  number;
-  image?: string;
-}
-
-export interface BilllineView {
-  id:          number;
-  billid:      number;
-  productid:   number;
-  productname: string;
-  qty:         number;
-  mrp:         number;
-  sp:          number;
-  savings:     number;
-  total:       number;
-}
-
-export interface BillView {
-  id:           number | null;
-  number:       string | null;
-  customer:     string | null;
-  state:        number;
-  subtotal:     number;
-  savings:      number;
-  roundedtotal: number;
-  billlines:    BilllineView[];
-}
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -290,15 +244,25 @@ export class AppComponent implements OnInit, OnDestroy {
     }).pipe(catchError(() => of(null))).subscribe();
   }
 
-   completeBill() {
+  completeBill() {
     const b = this.bill();
     if (!b?.id) return;
+    
+    // Capture current items for printing
+    const currentItems = [...this.rowData];
+    
     this.billSaving.set(true);
     this.http.post<BillView>(`/api/bill/complete/${b.id}`, {})
       .pipe(catchError(() => of(null)))
       .subscribe(result => {
         this.billSaving.set(false);
-        if (result) this.bill.set({ ...result, billlines: [] });
+        if (result) {
+          // Trigger print
+          this.printService.printInvoice(result, currentItems);
+          
+          // Update state
+          this.bill.set({ ...result, billlines: [] });
+        }
       });
   }
 
@@ -373,7 +337,7 @@ export class AppComponent implements OnInit, OnDestroy {
       });
   }
 
-  constructor(private http: HttpClient, private zone: NgZone, private scanner: ScannerService) {}
+  constructor(private http: HttpClient, private zone: NgZone, private scanner: ScannerService, private printService: PrintService) {}
 
   ngOnInit() {
     this.scanner.barcode$.subscribe(barcode => {
