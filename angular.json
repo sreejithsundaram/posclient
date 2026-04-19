@@ -53,7 +53,9 @@
             "development": {
               "optimization": false,
               "extractLicenses": false,
-              "sourceMap": true,
+              "sourceMap": true
+            },
+            "remote": {
               "fileReplacements": [
                 {
                   "replace": "src/environments/environment.ts",
@@ -72,6 +74,9 @@
             },
             "development": {
               "buildTarget": "posclient:build:development"
+            },
+            "remote": {
+              "buildTarget": "posclient:build:remote"
             }
           },
           "defaultConfiguration": "development",
